@@ -1,0 +1,37 @@
+name:                 lol-accelerate
+version:              0.1.0.0
+synopsis:             Accelerate backend for the Λ ○ λ (Lol) lattice-cryptography library
+description:
+  This package provides an Accelerate backend for computing with the Λ ○ λ (Lol)
+  general-purpose library for ring-based cryptography. For more information,
+  see:
+  .
+  * Lol: <https://hackage.haskell.org/package/lol>
+  .
+  * Accelerate: <https://hackage.haskell.org/package/accelerate>
+
+homepage:             https://github.com/tmcdonell/Lol-accelerate
+license:              BSD3
+license-file:         LICENSE
+author:               Trevor L. McDonell
+maintainer:           Trevor L. McDonell <tmcdonell@cse.unsw.edu.au>
+copyright:            Copyright (c) [2016]. Trevor L. McDonell <tmcdonell@cse.unsw.edu.au>
+category:             Crypto
+build-type:           Simple
+cabal-version:        >= 1.10
+
+extra-source-files:
+  README.md
+
+library
+  default-language:    Haskell2010
+  build-depends:
+      base                  >= 4.7 && < 4.9
+    , accelerate            >= 0.16
+    , lol                   >= 0.2
+
+  ghc-options:        -Wall
+
+  -- exposed-modules:
+  -- other-modules:
+
