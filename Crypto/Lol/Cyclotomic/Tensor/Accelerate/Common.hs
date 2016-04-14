@@ -4,6 +4,7 @@
 {-# LANGUAGE NoImplicitPrelude   #-}
 {-# LANGUAGE RoleAnnotations     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns        #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 -- Copyright   : [2016] Trevor L. McDonell
@@ -32,6 +33,8 @@ import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralD
 
 import Crypto.Lol.LatticePrelude
 
+import Text.Printf
+
 
 -- | Indexed newtype representing arrays that hold elements of some type 'r'. In
 -- this case, backed by Accelerate arrays.
@@ -56,18 +59,18 @@ type role Arr nominal nominal
 --    'ldr'-dimensional transform 'I_l' &#8855; f &#8855; 'I_r' to an array of
 --    elements of type 'r'.
 --
-type Tensorable r = ( Exp Int, Acc (Array DIM2 r) -> Acc (Array DIM2 r) )
+type Tensorable r = ( Int, Acc (Array DIM2 r) -> Acc (Array DIM2 r) )
 
 -- | A transform with particular 'I_l', 'I_r'
 --
-type TransC r = ( Tensorable r, Exp Int, Exp Int )
+type TransC r = ( Tensorable r, Int, Int )
 
 -- | A full transform as a sequence of zero or more components terminated by the
 -- identity transform. To be well-formed, all components must have the same
 -- dimensionality.
 --
 data Trans r where
-  Id    :: Exp Int             -> Trans r   -- identity sentinel
+  Id    :: Int                 -> Trans r   -- identity sentinel
   TSnoc :: Trans r -> TransC r -> Trans r   -- transform function composition
 
 
@@ -96,10 +99,9 @@ f @* g                         = (f @* Id (dim g)) .* (Id (dim f) @* g)   -- com
 -- | ???
 --
 (.*) :: Trans r -> Trans r -> Trans r
-f .* g = f ..* g
--- f .* g | dim f == dim g = f ..* g
---        | otherwise = error $ "(.*): transform dimensions don't match "
---                      LP.++ show (dim f) LP.++ ", " LP.++ show (dim g)
+f .* g
+  | dim f == dim g = f ..* g
+  | otherwise      = error $ printf "(.*): transform dimensions mismatch: %d /= %d" (dim f) (dim g)
   where
     f' ..* (Id _)          = f'                     -- drop sentinel
     f' ..* (TSnoc rest g') = TSnoc (f' ..* rest) g'
@@ -107,11 +109,11 @@ f .* g = f ..* g
 
 -- | Returns the (linear) dimension of a transform
 --
-dim :: Trans r -> Exp Int
+dim :: Trans r -> Int
 dim (Id n)      = n
 dim (TSnoc _ f) = dimC f        -- just use dimension of head
 
-dimC :: TransC r -> Exp Int
+dimC :: TransC r -> Int
 dimC ((d, _), l, r) = l*d*r
 
 -- | Evaluate a transform by evaluating each component in sequence
@@ -126,8 +128,8 @@ evalC ((d, f), _, r) = Arr . unexpose r . f . expose d r . unArr
 -- | Map the innermost dimension to a 2D array with innermost dimension 'd' for
 -- performing 'I_l' &#8855; 'I_r' transformation.
 --
-expose :: Elt r => Exp Int -> Exp Int -> Acc (Array DIM1 r) -> Acc (Array DIM2 r)
-expose d r arr = backpermute sh f arr
+expose :: Elt r => Int -> Int -> Acc (Array DIM1 r) -> Acc (Array DIM2 r)
+expose (constant -> d) (constant -> r) arr = backpermute sh f arr
   where
     Z :. sz = unlift (shape arr)
     sh      = index2 (sz `div` d) d
@@ -138,8 +140,8 @@ expose d r arr = backpermute sh f arr
 
 -- | Inverse of 'expose'
 --
-unexpose :: Elt r => Exp Int -> Acc (Array DIM2 r) -> Acc (Array DIM1 r)
-unexpose r arr = backpermute sh f arr
+unexpose :: Elt r => Int -> Acc (Array DIM2 r) -> Acc (Array DIM1 r)
+unexpose (constant -> r) arr = backpermute sh f arr
   where
     sh            = index1 (sz * d)
     Z :. sz :. d  = unlift (shape arr)
