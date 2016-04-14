@@ -87,6 +87,7 @@ repl r =
 trans :: Tensorable r -> Trans r
 trans f@(d,_) = Id d `TSnoc` (f, 1, 1)   -- I_d . f
 
+
 -- | Kronecker-product operator &#8855;
 --
 (@*) :: Trans r -> Trans r -> Trans r
@@ -116,6 +117,7 @@ dim (TSnoc _ f) = dimC f        -- just use dimension of head
 dimC :: TransC r -> Int
 dimC ((d, _), l, r) = l*d*r
 
+
 -- | Evaluate a transform by evaluating each component in sequence
 --
 eval :: Elt r => Trans r -> Arr m r -> Arr m r
@@ -124,6 +126,7 @@ eval (TSnoc rest f) = eval rest . evalC f
 
 evalC :: Elt r => TransC r -> Arr m r -> Arr m r
 evalC ((d, f), _, r) = Arr . unexpose r . f . expose d r . unArr
+
 
 -- | Map the innermost dimension to a 2D array with innermost dimension 'd' for
 -- performing 'I_l' &#8855; 'I_r' transformation.
