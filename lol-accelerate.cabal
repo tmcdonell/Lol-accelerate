@@ -29,9 +29,11 @@ library
       base                  >= 4.7 && < 4.9
     , accelerate            >= 0.16
     , lol                   >= 0.2
+    , numeric-prelude       >= 0.4.2
 
   ghc-options:        -Wall
 
   -- exposed-modules:
-  -- other-modules:
+  other-modules:
+      Data.Array.Accelerate.Crypto.Lol.Types.Complex
 
