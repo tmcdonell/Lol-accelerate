@@ -2,6 +2,7 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RoleAnnotations     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns        #-}
@@ -19,19 +20,21 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common (
 
   Arr(..),
   repl, eval,
-
+  fTensor, ppTensor,
   Trans(Id), trans, dim, (.*), (@*),
 
 ) where
 
-import Data.Array.Accelerate
-import qualified Data.Array.Accelerate                              as A
+import Data.Array.Accelerate                                        as A
 
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
 
 import Crypto.Lol.LatticePrelude
+
+import Data.Singletons
+import Data.Singletons.Prelude
 
 import Text.Printf
 
@@ -153,4 +156,36 @@ unexpose (constant -> r) arr = backpermute sh f arr
                         (idivrd, j)    = idivr `divMod` d
                     in
                     index2 (r * idivrd + imodr) j
+
+-- | For a factored index, tensors up any function defined for (and tagged by)
+-- any prime power
+--
+fTensor
+    :: forall m r monad. (Fact m, Monad monad, Elt r)
+    => (forall pp. PPow pp => TaggedT pp monad (Trans r))
+    -> TaggedT m monad (Trans r)
+fTensor f = tagT . go $ sUnF (sing :: SFactored m)
+  where
+    go :: Sing (pplist :: [PrimePower]) -> monad (Trans r)
+    go SNil         = return (Id 1)
+    go (SCons s ss) = do
+      ss' <- go ss
+      f'  <- withWitnessT f s
+      return $ ss' @* f'
+
+-- | For a prime power @p^e@, tensors up any function @f@ defined for (and
+-- tagged by) a prime to @I_(p^{e-1}) &#8855; f@
+--
+ppTensor
+    :: forall pp r monad. (PPow pp, Monad monad)
+    => (forall p. Prim p => TaggedT p monad (Trans r))
+    -> TaggedT pp monad (Trans r)
+ppTensor f = tagT $ go (sing :: SPrimePower pp)
+  where
+    go pp@(SPP (STuple2 sp _)) = do
+      f' <- withWitnessT f sp
+      let x   = withWitness valuePPow pp
+          y   = withWitness valuePrime sp
+          lts = x `div` y
+      return $ Id lts @* f'
 
