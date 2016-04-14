@@ -40,7 +40,7 @@ import Text.Printf
 
 
 -- | Indexed newtype representing arrays that hold elements of some type 'r'. In
--- this case, backed by Accelerate arrays.
+-- this case, backed by Accelerate.
 --
 newtype Arr (m :: Factored) r = Arr { unArr :: Acc (Array DIM1 r) }
   deriving Show
@@ -123,9 +123,11 @@ dimC ((d, _), l, r) = l*d*r
 
 -- | Evaluate a transform by evaluating each component in sequence
 --
-eval :: Elt r => Trans r -> Arr m r -> Arr m r
-eval Id{}           = id
-eval (TSnoc rest f) = eval rest . evalC f
+eval :: Elt r => Tagged m (Trans r) -> Arr m r -> Arr m r
+eval = eval' . untag
+  where
+    eval' Id{}           = id
+    eval' (TSnoc rest f) = eval' rest . evalC f
 
 evalC :: Elt r => TransC r -> Arr m r -> Arr m r
 evalC ((d, f), _, r) = Arr . unexpose r . f . expose d r . unArr
