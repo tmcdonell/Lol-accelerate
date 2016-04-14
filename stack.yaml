@@ -11,11 +11,16 @@ packages:
   extra-dep: true
 
 - location:
-    git:    https://github.com/cpeikert/Lol.git
-    commit: 6557d2b10f97bcdd4646f82c09a215a6d67677f1
+    git:    https://github.com/tmcdonell/Lol.git
+    commit: fa73e4cfd15149156871770d8586a613d18768d5
   extra-dep: true
   subdirs:
     - 'lol'
+
+- location:
+    git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
+    commit: 3afcfe9b6b01942369b4975ede6ade47fb5eddd6
+  extra-dep: true
 
 extra-deps:
 - 'arithmoi-0.4.1.3'
