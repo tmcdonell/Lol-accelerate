@@ -72,3 +72,11 @@ library
     cpp-options:      -DACCELERATE_LLVM_PTX_BACKEND
     build-depends:
         accelerate-llvm-ptx             >= 0.16
+
+
+source-repository head
+  type:                 git
+  location:             https://github.com/tmcdonell/lol-accelerate
+
+-- vim: nospell
+
