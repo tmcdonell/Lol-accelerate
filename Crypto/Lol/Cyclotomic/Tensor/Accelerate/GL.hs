@@ -25,6 +25,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL (
 ) where
 
 import Data.Array.Accelerate                                        as A hiding ( fromIntegral )
+import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
@@ -64,9 +65,16 @@ fGDec = eval $ fTensor $ ppTensor pGDec
 -- | Arbitrary-index division by @g_m@ in the powerful basis. Outputs 'Nothing'
 -- if not evenly divisible by @g_m@.
 --
+-- Unfortunately, we have an extra 'IsNum' constraint because the
+-- numeric-prelude definition of 'fromIntegral' requires an instance of
+-- 'ToIntegrer', which is entirely untenable for Accelerate.
+--
 -- WARNING: Not constant time.
 --
-fGInvPow :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r) => Arr m r -> Maybe (Arr m r)
+fGInvPow
+    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), IsNum r, Elt r)
+    => Arr m r
+    -> Maybe (Arr m r)
 fGInvPow = wrapGInv pGInvPow
 
 -- | Arbitrary-index division by @g_m@ in the decoding basis. Outputs 'Nothing'
@@ -74,7 +82,10 @@ fGInvPow = wrapGInv pGInvPow
 --
 -- WARNING: Not constant time
 --
-fGInvDec :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r) => Arr m r -> Maybe (Arr m r)
+fGInvDec
+    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), IsNum r, Elt r)
+    => Arr m r
+    -> Maybe (Arr m r)
 fGInvDec = wrapGInv pGInvDec
 
 
@@ -92,15 +103,7 @@ pWrap f
 
 
 pL :: (Prim p, Additive (Exp r), Elt r) => Tagged p (Trans r)
-pL = pWrap $ \_ arr ->
-  let
-      -- 2D scan via segmented scan over flattened vector
-      Z :. h :. w   = unlift (shape arr)
-      seg           = A.fill (index1 h) w
-      vec           = A.flatten arr
-      p             = A.scanl1Seg (+) vec seg
-  in
-  reshape (shape arr) p
+pL = pWrap $ \_ arr -> scanl1_2d (+) arr
 
 pLInv :: forall p r. (Prim p, Additive (Exp r), Elt r) => Tagged p (Trans r)
 pLInv = pWrap $ \_ arr ->
@@ -178,11 +181,55 @@ divCheck arr den =
 
 -- Doesn't do division by (odd) p
 --
-pGInvPow :: (Prim p, Ring (Exp r), Elt r) => Tagged p (Trans r)
-pGInvPow = error "TODO: GL.pGInvPow"
+pGInvPow :: forall p r. (Prim p, Ring (Exp r), IsNum r, Elt r) => Tagged p (Trans r)
+pGInvPow = pWrap $ \p arr ->
+  let
+      sl   = scanl1_2d (+) arr
+      sr   = scanr1_2d (+) arr
+
+      f :: Exp DIM2 -> Exp r -> Exp r -> Exp r
+      f ix x y  = let i = indexHead ix
+                  in  A.fromIntegral (constant p-i-1) * x
+                    + A.fromIntegral (-i-1)           * y
+  in
+  A.izipWith f sl sr
+
 
 -- Doesn't do division by (odd) p
 --
-pGInvDec :: (Prim p, Ring (Exp r), Elt r) => Tagged p (Trans r)
-pGInvDec = error "TODO: GL.pGInvDec"
+pGInvDec :: forall p r. (Prim p, Ring (Exp r), IsNum r, Elt r) => Tagged p (Trans r)
+pGInvDec = pWrap $ \p arr ->
+  let
+      nats = generate (shape arr) (\ix -> let i = indexHead ix in A.fromIntegral i + 1)
+      sl   = A.fold (+) zero (A.zipWith (*) arr nats)
+      sr   = scanr1_2d (+) arr
+
+      f :: Exp DIM2 -> Exp r -> Exp r
+      f ix x = let Z :. j :. _ = unlift ix      :: Z :. Exp Int :. Exp Int
+                   s           = sl ! index1 j
+               in
+               s - A.fromIntegral (constant p) * x
+  in
+  A.imap f sr
+
+
+-- Accelerate doesn't have native multi-dimensional scans, so implement them
+-- here via segmented scans. Segmented scans are similarly not a primitive
+-- operation, so we may be able to do this more efficiently still.
+--
+scanl1_2d :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Array DIM2 a) -> Acc (Array DIM2 a)
+scanl1_2d f arr = reshape (shape arr) p
+  where
+    Z :. h :. w = unlift (shape arr)
+    seg         = A.fill (index1 h) w
+    vec         = A.flatten arr
+    p           = A.scanl1Seg f vec seg
+
+scanr1_2d :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Array DIM2 a) -> Acc (Array DIM2 a)
+scanr1_2d f arr = reshape (shape arr) p
+  where
+    Z :. h :. w = unlift (shape arr)
+    seg         = A.fill (index1 h) w
+    vec         = A.flatten arr
+    p           = A.scanr1Seg f vec seg
 
