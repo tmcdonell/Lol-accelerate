@@ -6,8 +6,8 @@ resolver: lts-5.11
 packages:
 - '.'
 - location:
-    git:    https://github.com/AccelerateHS/accelerate.git
-    commit: 171bab5fdd2c1de165fbdc37d57238002772ed1f
+    git:    https://github.com/tmcdonell/accelerate.git
+    commit: 3b9a077cb9940a9a9f07e69c53f10de639aa04c4
   extra-dep: true
 
 - location:
@@ -19,7 +19,7 @@ packages:
 
 - location:
     git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
-    commit: 2961a74bcc081d82550cdb9dbced1a76a893f599
+    commit: 714d392a83a14fa8333333304aa7d4a5c02d9da5
   extra-dep: true
 
 extra-deps:

@@ -27,6 +27,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL (
 import Data.Array.Accelerate                                        as A hiding ( fromIntegral )
 import qualified Data.Array.Accelerate                              as A
 
+import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger ()
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
@@ -72,7 +73,7 @@ fGDec = eval $ fTensor $ ppTensor pGDec
 -- WARNING: Not constant time.
 --
 fGInvPow
-    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), IsNum r, Elt r)
+    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
     => Arr m r
     -> Maybe (Arr m r)
 fGInvPow = wrapGInv pGInvPow
@@ -83,7 +84,7 @@ fGInvPow = wrapGInv pGInvPow
 -- WARNING: Not constant time
 --
 fGInvDec
-    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), IsNum r, Elt r)
+    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
     => Arr m r
     -> Maybe (Arr m r)
 fGInvDec = wrapGInv pGInvDec
@@ -181,7 +182,7 @@ divCheck arr den =
 
 -- Doesn't do division by (odd) p
 --
-pGInvPow :: forall p r. (Prim p, Ring (Exp r), IsNum r, Elt r) => Tagged p (Trans r)
+pGInvPow :: forall p r. (Prim p, Ring (Exp r), Elt r) => Tagged p (Trans r)
 pGInvPow = pWrap $ \p arr ->
   let
       sl   = scanl1_2d (+) arr
@@ -189,18 +190,18 @@ pGInvPow = pWrap $ \p arr ->
 
       f :: Exp DIM2 -> Exp r -> Exp r -> Exp r
       f ix x y  = let i = indexHead ix
-                  in  A.fromIntegral (constant p-i-1) * x
-                    + A.fromIntegral (-i-1)           * y
+                  in  fromIntegral (constant p-i-1) * x
+                    + fromIntegral (-i-1)           * y
   in
   A.izipWith f sl sr
 
 
 -- Doesn't do division by (odd) p
 --
-pGInvDec :: forall p r. (Prim p, Ring (Exp r), IsNum r, Elt r) => Tagged p (Trans r)
+pGInvDec :: forall p r. (Prim p, Ring (Exp r), Elt r) => Tagged p (Trans r)
 pGInvDec = pWrap $ \p arr ->
   let
-      nats = generate (shape arr) (\ix -> let i = indexHead ix in A.fromIntegral i + 1)
+      nats = generate (shape arr) (\ix -> let i = indexHead ix in fromIntegral i + one)
       sl   = A.fold (+) zero (A.zipWith (*) arr nats)
       sr   = scanr1_2d (+) arr
 
@@ -208,7 +209,7 @@ pGInvDec = pWrap $ \p arr ->
       f ix x = let Z :. j :. _ = unlift ix      :: Z :. Exp Int :. Exp Int
                    s           = sl ! index1 j
                in
-               s - A.fromIntegral (constant p) * x
+               s - fromIntegral (constant p) * x
   in
   A.imap f sr
 
