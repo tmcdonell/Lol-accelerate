@@ -37,7 +37,7 @@ flag llvm-gpu
 
 
 library
-  default-language:    Haskell2010
+  default-language:   Haskell2010
   build-depends:
       base                              >= 4.7 && < 4.9
     , accelerate                        >= 0.16
@@ -75,8 +75,8 @@ library
 
 
 source-repository head
-  type:                 git
-  location:             https://github.com/tmcdonell/lol-accelerate
+  type:               git
+  location:           https://github.com/tmcdonell/lol-accelerate
 
 -- vim: nospell
 
