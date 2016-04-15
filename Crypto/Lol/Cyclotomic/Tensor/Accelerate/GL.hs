@@ -201,7 +201,7 @@ pGInvPow = pWrap $ \p arr ->
 pGInvDec :: forall p r. (Prim p, Ring (Exp r), Elt r) => Tagged p (Trans r)
 pGInvDec = pWrap $ \p arr ->
   let
-      nats = generate (shape arr) (\ix -> let i = indexHead ix in fromIntegral i + one)
+      nats = generate (shape arr) (\ix -> fromIntegral (indexHead ix) + one)
       sl   = A.fold (+) zero (A.zipWith (*) arr nats)
       sr   = scanr1_2d (+) arr
 
