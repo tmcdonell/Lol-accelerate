@@ -25,7 +25,6 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL (
 ) where
 
 import Data.Array.Accelerate                                        as A hiding ( fromIntegral )
-import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger ()
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
@@ -35,6 +34,7 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 import Data.Array.Accelerate.Algebra.ZeroTestable                   ( isZero )
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.LatticePrelude                                    hiding ( ZeroTestable, isZero )
 
 
@@ -172,13 +172,13 @@ divCheck
     -> Maybe (Arr m r)
 divCheck arr den =
   let
-      (q,r) = A.unzip $ A.map (\x -> A.lift (x `divMod` den)) (unArr arr)
-      ok    = A.all isZero r
+      (q,r)    = A.unzip $ A.map (\x -> A.lift (x `divMod` den)) (unArr arr)
+      ok       = A.all isZero r
+      (ok',q') = run (A.lift (ok,q))  -- TODO: Don't copy 'q' back to the host
   in
-  -- Since we need to 'run' the computation here to determine (via 'ok') whether
-  -- we should return 'Nothing' or 'Just q' (the result), make sure to evaluate
-  -- and return 'q' at the some time.
-  error "TODO: GL.divCheck"
+  if indexArray ok' Z
+     then Just (Arr (use q'))
+     else Nothing
 
 -- Doesn't do division by (odd) p
 --
