@@ -23,11 +23,25 @@ cabal-version:        >= 1.10
 extra-source-files:
   README.md
 
+flag cuda
+  description: Enable the CUDA backend for NVIDIA GPUs
+  default:     False
+
+flag llvm-cpu
+  description: Enable the LLVM backend for Multicore CPUs
+  default:     False
+
+flag llvm-gpu
+  description: Enable the LLVM backend for NIVDIA GPUs
+  default:     False
+
+
 library
   default-language:    Haskell2010
   build-depends:
       base                              >= 4.7 && < 4.9
     , accelerate                        >= 0.16
+    , fclabels                          >= 2.0
     , lol                               >= 0.2
     , numeric-prelude                   >= 0.4.2
     , numeric-prelude-accelerate        >= 0.1
@@ -42,3 +56,19 @@ library
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL
 
+      Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
+
+  if flag(cuda)
+    cpp-options:      -DACCELERATE_CUDA_BACKEND
+    build-depends:
+        accelerate-cuda                 >= 0.16
+
+  if flag(llvm-cpu)
+    cpp-options:      -DACCELERATE_LLVM_NATIVE_BACKEND
+    build-depends:
+        accelerate-llvm-native          >= 0.16
+
+  if flag(llvm-gpu)
+    cpp-options:      -DACCELERATE_LLVM_PTX_BACKEND
+    build-depends:
+        accelerate-llvm-ptx             >= 0.16
