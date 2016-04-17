@@ -39,6 +39,9 @@ import Data.Singletons.Prelude
 import Text.Printf
 
 
+-- infixr 9 .*
+-- infixl 7 @*
+
 -- | Indexed newtype representing arrays that hold elements of some type 'r'. In
 -- this case, backed by Accelerate.
 --
