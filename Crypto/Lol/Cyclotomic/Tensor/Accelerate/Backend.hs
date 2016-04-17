@@ -96,6 +96,10 @@ availableBackends optBackend =
 
 -- | Execute an Accelerate program
 --
+-- TODO: How to select which backend to use? We might need to use an environment
+--       variable or command line flag, as it looks like there is no single
+--       (top-level) point at which we execute the entire Lol computation.
+--
 run :: Arrays a => Acc a -> a
 run = runWith defaultBackend
 
