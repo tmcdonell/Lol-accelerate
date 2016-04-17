@@ -94,10 +94,10 @@ trans f@(d,_) = Id d `TSnoc` (f, 1, 1)   -- I_d . f
 -- | Kronecker-product operator &#8855;
 --
 (@*) :: Trans r -> Trans r -> Trans r
-Id m @* Id n                   = Id (m * n)                               -- Merge identity transforms: I_m ⊗ I_n = I_mn
-i@(Id n) @* TSnoc g' (g, l, r) = TSnoc (i @* g') (g, n*l, r)              -- Id on left or right: I_n ⊗ (A ○ B) = (I_n ⊗ A) ○ (I_n ⊗ B)
-TSnoc f' (f, l, r) @* i@(Id n) = TSnoc (f' @* i) (f, l, r*n)              -- ...and similarly to above
-f @* g                         = (f @* Id (dim g)) .* (Id (dim f) @* g)   -- compose: (A ⊗ B) = (A ⊗ I) ○ (I ⊗ B)
+Id m               @* Id n               = Id (m * n)                             -- Merge identity transforms: I_m ⊗ I_n = I_mn
+i@(Id n)           @* TSnoc g' (g, l, r) = TSnoc (i @* g') (g, n*l, r)            -- Id on left: I_n ⊗ (A ○ B) = (I_n ⊗ A) ○ (I_n ⊗ B)
+TSnoc f' (f, l, r) @* i@(Id n)           = TSnoc (f' @* i) (f, l, r*n)            -- ...and similarly to above with Id on the right
+f                  @* g                  = (f @* Id (dim g)) .* (Id (dim f) @* g) -- compose: (A ⊗ B) = (A ⊗ I) ○ (I ⊗ B)
 
 
 -- | Composition of transforms; corresponds to matrix multiplication.
