@@ -65,7 +65,7 @@ type role Arr nominal nominal
 --  * The dimension 'd' of the atomic transform 'f'
 --
 --  * A function 'f' that given any dimensions 'l', 'r', applies the
---    'ldr'-dimensional transform 'I_l' &#8855; f &#8855; 'I_r' to an array of
+--    'ldr'-dimensional transform 'I_l' ⊗ 'f' ⊗ 'I_r' to an array of
 --    elements of type 'r'.
 --
 type Tensorable r = ( Int, Acc (Array DIM2 r) -> Acc (Array DIM2 r) )
@@ -97,7 +97,7 @@ trans :: Tensorable r -> Trans r
 trans f@(d,_) = Id d `TSnoc` (f, 1, 1)   -- I_d . f
 
 
--- | Kronecker-product operator &#8855;
+-- | Kronecker-product operator ⊗
 --
 (@*) :: Trans r -> Trans r -> Trans r
 Id m               @* Id n               = Id (m * n)                             -- Merge identity transforms: I_m ⊗ I_n = I_mn
@@ -143,7 +143,7 @@ evalM = liftM (eval . return) . untagT
 
 
 -- | Map the innermost dimension to a 2D array with innermost dimension 'd' for
--- performing 'I_l' &#8855; 'I_r' transformation.
+-- performing 'I_l' ⊗ 'I_r' transformation.
 --
 expose :: Elt r => Int -> Int -> Acc (Array DIM1 r) -> Acc (Array DIM2 r)
 expose (constant -> d) (constant -> r) arr = backpermute sh f arr
@@ -185,7 +185,7 @@ fTensor f = tagT . go $ sUnF (sing :: SFactored m)
       return $ ss' @* f'
 
 -- | For a prime power @p^e@, tensors up any function @f@ defined for (and
--- tagged by) a prime to @I_(p^{e-1}) &#8855; f@
+-- tagged by) a prime to @I_{p^{e-1}} ⊗ f@
 --
 ppTensor
     :: forall pp r monad. (PPow pp, Monad monad)
