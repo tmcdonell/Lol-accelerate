@@ -100,7 +100,7 @@ TSnoc f' (f, l, r) @* i@(Id n) = TSnoc (f' @* i) (f, l, r*n)              -- ...
 f @* g                         = (f @* Id (dim g)) .* (Id (dim f) @* g)   -- compose: (A ⊗ B) = (A ⊗ I) ○ (I ⊗ B)
 
 
--- | ???
+-- | Composition of transforms; corresponds to matrix multiplication.
 --
 (.*) :: Trans r -> Trans r -> Trans r
 f .* g
