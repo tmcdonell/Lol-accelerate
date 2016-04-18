@@ -56,6 +56,7 @@ library
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL
+      Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
 
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 
