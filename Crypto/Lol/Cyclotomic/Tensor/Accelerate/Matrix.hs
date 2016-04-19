@@ -37,32 +37,32 @@ data Matrix r
   = MNil
   | MKron (Matrix r) (MatrixC r)    -- snoc list
 
--- TODO: Use DIM2 to make the dimensionality & row/column indexes clear?
+-- XXX: This type can be used to introduce nested parallelism... be careful.
 --
 data MatrixC r
-  = MC Int Int                      -- #rows, #columns
-    (Exp Int -> Exp Int -> r)       -- indexing with 'Exp Int'
+  = MC DIM2 (Exp DIM2 -> Exp r)
 
 
 -- | Extract the @(i,j) element of a 'Matrix'
 --
-indexM :: Ring (Exp r) => Matrix (Exp r) -> Exp Int -> Exp Int -> Exp r
-indexM MNil                    _ _ = one
-indexM (MKron mat (MC r c mc)) i j =
+indexM :: Ring (Exp r) => Matrix r -> Exp DIM2 -> Exp r
+indexM MNil                          _  = one
+indexM (MKron mat (MC (Z:.r:.c) mc)) ix =
   let
-      (iq,ir) = i `divMod` constant r
-      (jq,jr) = j `divMod` constant c
+      Z :. i :. j = unlift ix
+      (iq,ir)     = i `divMod` constant r
+      (jq,jr)     = j `divMod` constant c
   in
-  indexM mat iq jq * mc ir jr
+  indexM mat (index2 iq jq) * mc (index2 ir jr)
 
 
 fMatrix
     :: forall monad m r. (Fact m, Monad monad, Ring (Exp r))
-    => (forall pp. PPow pp => TaggedT pp monad (MatrixC (Exp r)))
-    -> TaggedT m monad (Matrix (Exp r))
+    => (forall pp. PPow pp => TaggedT pp monad (MatrixC r))
+    -> TaggedT m monad (Matrix r)
 fMatrix mat = tagT $ go (sUnF (sing :: SFactored m))
   where
-    go :: Sing (pplist :: [PrimePower]) -> monad (Matrix (Exp r))
+    go :: Sing (pplist :: [PrimePower]) -> monad (Matrix r)
     go SNil             = return MNil
     go (SCons spp rest) = MKron <$> go rest <*> withWitnessT mat spp
 
@@ -72,16 +72,20 @@ fMatrix mat = tagT $ go (sUnF (sing :: SFactored m))
 --
 ppMatrix
     :: forall monad pp r. (PPow pp, Monad monad, Ring (Exp r))
-    => (forall p. Prim p => TaggedT p monad (MatrixC (Exp r)))
-    -> TaggedT pp monad (MatrixC (Exp r))
+    => (forall p. Prim p => TaggedT p monad (MatrixC r))
+    -> TaggedT pp monad (MatrixC r)
 ppMatrix mat = tagT $ go (sing :: SPrimePower pp)
   where
-    go :: SPrimePower pp -> monad (MatrixC (Exp r))
+    go :: SPrimePower pp -> monad (MatrixC r)
     go pp@(SPP (STuple2 sp _)) = do
-      MC h w f <- withWitnessT mat sp
+      MC (Z:.h:.w) f <- withWitnessT mat sp
       let
           d = withWitness valuePPow  pp `div`
               withWitness valuePrime sp
+
+          g :: Exp DIM2 -> Exp r
+          g ix = let Z:.i:.j = unlift ix
+                 in  f (index2 (i`mod`constant h) j)
       --
-      return $ MC (h*d) w (f . (`mod` constant h))
+      return $ MC (Z:.h*d:.w) g
 
