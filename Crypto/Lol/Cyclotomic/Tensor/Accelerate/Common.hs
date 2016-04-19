@@ -37,7 +37,6 @@ import Crypto.Lol.LatticePrelude
 
 import Data.Singletons
 import Data.Singletons.Prelude
-import Control.Monad
 
 import Text.Printf
 
@@ -139,7 +138,7 @@ evalC :: Elt r => TransC r -> Arr m r -> Arr m r
 evalC ((d, f), _, r) = Arr . unexpose r . f . expose d r . unArr
 
 evalM :: (Elt r, Monad monad) => TaggedT m monad (Trans r) -> monad (Arr m r -> Arr m r)
-evalM = liftM (eval . return) . untagT
+evalM = fmap (eval . return) . untagT
 
 
 -- | Map the innermost dimension to a 2D array with innermost dimension 'd' for
