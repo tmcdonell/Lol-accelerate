@@ -6,6 +6,7 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RoleAnnotations     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE ViewPatterns        #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
@@ -24,6 +25,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common (
   fTensor, ppTensor,
   Trans(Id), trans, dim, (.*), (@*),
   scalarPow,
+  mulMat, mulDiag,
 
 ) where
 
@@ -35,8 +37,7 @@ import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 
 import Crypto.Lol.LatticePrelude
 
-import Data.Singletons
-import Data.Singletons.Prelude
+import Data.Singletons.Prelude                                      ( Sing(..), sing )
 
 import Text.Printf
 
@@ -212,4 +213,40 @@ scalarPow r =
       f (unindex1 -> i) = i ==* 0 ? ( r , zero )
   in
   Arr $ generate sh f
+
+
+-- | General matrix-matrix multiplication
+--
+-- TODO: Use the FFI to import a fast implementation
+--
+-- TODO: Check that this matches the definition in RTCommon; They may be using
+--       a column-major representation (i.e. have swapped which index represents
+--       the rows/columns compared to regular Accelerate).
+--
+mulMat
+    :: (Ring (Exp r), Elt r)
+    => Acc (Array DIM2 r)
+    -> Acc (Array DIM2 r)
+    -> Acc (Array DIM2 r)
+mulMat arr brr
+  = A.fold (+) zero
+  $ A.zipWith (*) arr' brr'
+  where
+    Z :. _     :. rowsA = unlift (shape arr) :: Z :. Exp Int :. Exp Int
+    Z :. colsB :. _     = unlift (shape brr) :: Z :. Exp Int :. Exp Int
+    arr'                = A.replicate (A.lift (Z :. All   :. colsB :. All)) arr
+    brr'                = A.replicate (A.lift (Z :. rowsA :. All   :. All)) trr
+    trr                 = compute (transpose brr)
+
+-- | Multiplication by a diagonal matrix along the innermost dimension
+--
+mulDiag
+    :: (Ring (Exp r), Elt r)
+    => Acc (Array DIM1 r)
+    -> Acc (Array DIM2 r)
+    -> Acc (Array DIM2 r)
+mulDiag diag mat
+  = A.generate (shape mat)
+  $ \ix -> mat  ! ix
+         * diag ! index1 (indexHead ix)
 
