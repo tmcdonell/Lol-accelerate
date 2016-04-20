@@ -51,7 +51,6 @@ instance Tensor AT where
   entailIndexT  = tag $ Sub Dict
   -- entailEqT     = tag $ Sub Dict
   -- entailZTT     = tag $ Sub Dict
-  -- entailRingT   = tag $ Sub Dict
   -- entailNFDataT = tag $ Sub Dict
   -- entailRandomT = tag $ Sub Dict
   entailShowT   = tag $ Sub Dict
