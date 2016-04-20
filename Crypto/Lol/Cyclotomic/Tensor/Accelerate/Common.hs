@@ -24,7 +24,6 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common (
   repl, eval, evalM,
   fTensor, ppTensor,
   Trans(Id), trans, dim, (.*), (@*),
-  scalarPow,
   mulMat, mulDiag,
 
 ) where
@@ -199,20 +198,6 @@ ppTensor f = tagT $ go (sing :: SPrimePower pp)
           y   = withWitness valuePrime sp
           lts = x `div` y
       return $ Id lts @* f'
-
--- | Embeds a scalar into a powerful-basis representation, tagged by the
--- cyclotomic index.
---
-scalarPow :: forall m r. (Fact m, Additive (Exp r), Elt r) => Exp r -> Arr m r
-scalarPow r =
-  let
-      n  = proxy totientFact (Proxy :: Proxy m)
-      sh = constant (Z :. n)
-
-      f :: Exp DIM1 -> Exp r
-      f (unindex1 -> i) = i ==* 0 ? ( r , zero )
-  in
-  Arr $ generate sh f
 
 
 -- | General matrix-matrix multiplication
