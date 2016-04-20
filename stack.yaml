@@ -19,7 +19,7 @@ packages:
 
 - location:
     git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
-    commit: 714d392a83a14fa8333333304aa7d4a5c02d9da5
+    commit: 1c061aeb7533a98fa1a0af0bae13551c46853c87
   extra-dep: true
 
 - location:
