@@ -47,6 +47,7 @@ import Debug.Trace
 --
 instance Tensor AT where
   type TElt AT r = Elt r
+  type TRep AT r = Exp r
 
   entailIndexT  = tag $ Sub Dict
   -- entailEqT     = tag $ Sub Dict
