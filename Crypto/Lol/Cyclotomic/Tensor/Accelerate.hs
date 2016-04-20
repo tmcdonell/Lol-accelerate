@@ -1,8 +1,9 @@
-{-# LANGUAGE DataKinds       #-}
-{-# LANGUAGE GADTs           #-}
-{-# LANGUAGE KindSignatures  #-}
-{-# LANGUAGE TypeFamilies    #-}
-{-# LANGUAGE ViewPatterns    #-}
+{-# LANGUAGE DataKinds          #-}
+{-# LANGUAGE GADTs              #-}
+{-# LANGUAGE KindSignatures     #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies       #-}
+{-# LANGUAGE ViewPatterns       #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate
 -- Copyright   : [2016] Trevor L. McDonell
@@ -53,7 +54,7 @@ instance Tensor AT where
   -- entailRingT   = tag $ Sub Dict
   -- entailNFDataT = tag $ Sub Dict
   -- entailRandomT = tag $ Sub Dict
-  -- entailShowT   = tag $ Sub Dict
+  entailShowT   = tag $ Sub Dict
   -- entailModuleT = tag $ Sub Dict
 
   scalarPow = AT . Pow.scalar
@@ -84,6 +85,8 @@ instance Tensor AT where
 data AT (m :: Factored) r where
   AT :: Elt r => Arr m r -> AT m r
   ZV :: IZipVector m r -> AT m r
+
+deriving instance Show r => Show (AT m r)
 
 instance Fact m => Functor (AT m) where
   fmap f x = pure f <*> x
