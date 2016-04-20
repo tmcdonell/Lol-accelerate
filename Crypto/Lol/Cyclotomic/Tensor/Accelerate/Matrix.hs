@@ -37,7 +37,8 @@ data Matrix r
   = MNil
   | MKron (Matrix r) (MatrixC r)    -- snoc list
 
--- XXX: This type can be used to introduce nested parallelism... be careful.
+-- XXX: This type can be used to introduce nested parallelism and unconstrained
+--      inlining... be careful.
 --
 data MatrixC r
   = MC DIM2 (Exp DIM2 -> Exp r)

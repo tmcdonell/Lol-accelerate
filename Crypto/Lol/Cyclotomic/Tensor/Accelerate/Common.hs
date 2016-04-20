@@ -47,6 +47,9 @@ import Text.Printf
 -- | Indexed newtype representing arrays that hold elements of some type 'r'. In
 -- this case, backed by Accelerate.
 --
+-- XXX: Why do we store this as a regular 1D array? Need to properly understand
+--      what 'expose' and 'unexpose' are doing.
+--
 newtype Arr (m :: Factored) r = Arr { unArr :: Acc (Array DIM1 r) }
   deriving Show
 
