@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds          #-}
 {-# LANGUAGE GADTs              #-}
 {-# LANGUAGE KindSignatures     #-}
+{-# LANGUAGE NoImplicitPrelude  #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies       #-}
 {-# LANGUAGE ViewPatterns       #-}
@@ -32,13 +33,15 @@ import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow        as Pow
 
 import Crypto.Lol.Cyclotomic.Tensor
 import Crypto.Lol.Types.IZipVector
-import Crypto.Lol.LatticePrelude
+import Crypto.Lol.LatticePrelude                                    as P
 
 import qualified Data.Vector.Generic                                as V
 
+import Control.Applicative
 import Data.Constraint
-import Data.Traversable
+import Data.Foldable
 import Data.Maybe
+import Data.Traversable
 
 import Debug.Trace
 
@@ -46,11 +49,11 @@ import Debug.Trace
 -- | Accelerate-backed Tensor instance
 --
 instance Tensor AT where
-  type TElt AT r = Elt r
+  type TElt AT r = (Elt r, A.Eq r)
   type TRep AT r = Exp r
 
   entailIndexT  = tag $ Sub Dict
-  -- entailEqT     = tag $ Sub Dict
+  entailEqT     = tag $ Sub Dict
   -- entailZTT     = tag $ Sub Dict
   -- entailNFDataT = tag $ Sub Dict
   -- entailRandomT = tag $ Sub Dict
@@ -86,7 +89,15 @@ data AT (m :: Factored) r where
   AT :: Elt r => Arr m r -> AT m r
   ZV :: IZipVector m r -> AT m r
 
+-- Standard instances
+
 deriving instance Show r => Show (AT m r)
+
+instance (P.Eq r, A.Eq r) => P.Eq (AT m r) where
+  ZV a           == ZV b           = a == b
+  (toAT -> AT a) == (toAT -> AT b) = a == b
+  _              == _              = error "I know words. A have all the best words."
+
 
 -- Category-theoretic instances
 
