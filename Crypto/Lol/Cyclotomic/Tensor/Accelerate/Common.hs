@@ -28,12 +28,14 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common (
 
 ) where
 
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        ( Acc, Array, Exp, Elt, DIM1, DIM2, All(..), Z(..), (:.)(..), (!) )
+import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.LatticePrelude
 
 import Data.Singletons.Prelude                                      ( Sing(..), sing )
@@ -90,7 +92,7 @@ data Trans r where
 repl :: forall m r. (Fact m, Elt r) => Exp r -> Arr m r
 repl r =
   let n = proxy totientFact (Proxy :: Proxy m)
-  in  Arr $ A.fill (constant (Z :. n)) r
+  in  Arr $ A.fill (A.constant (Z :. n)) r
 
 
 -- | Smart constructor for 'Trans'
@@ -148,27 +150,27 @@ evalM = fmap (eval . return) . untagT
 -- performing 'I_l' ⊗ 'I_r' transformation.
 --
 expose :: Elt r => Int -> Int -> Acc (Array DIM1 r) -> Acc (Array DIM2 r)
-expose (constant -> d) (constant -> r) arr = backpermute sh f arr
+expose (A.constant -> d) (A.constant -> r) arr = A.backpermute sh f arr
   where
-    Z :. sz = unlift (shape arr)
-    sh      = index2 (sz `div` d) d
-    f ix    = let Z :. i :. j = unlift ix
+    Z :. sz = A.unlift (A.shape arr)
+    sh      = A.index2 (sz `div` d) d
+    f ix    = let Z :. i :. j = A.unlift ix
                   imodr       = i `mod` r
               in
-              index1 ((i-imodr)*d + j*r + imodr)
+              A.index1 ((i-imodr)*d + j*r + imodr)
 
 -- | Inverse of 'expose'
 --
 unexpose :: Elt r => Int -> Acc (Array DIM2 r) -> Acc (Array DIM1 r)
-unexpose (constant -> r) arr = backpermute sh f arr
+unexpose (A.constant -> r) arr = A.backpermute sh f arr
   where
-    sh            = index1 (sz * d)
-    Z :. sz :. d  = unlift (shape arr)
-    f ix          = let i              = unindex1 ix
+    sh            = A.index1 (sz * d)
+    Z :. sz :. d  = A.unlift (A.shape arr)
+    f ix          = let i              = A.unindex1 ix
                         (idivr, imodr) = i     `divMod` r
                         (idivrd, j)    = idivr `divMod` d
                     in
-                    index2 (r * idivrd + imodr) j
+                    A.index2 (r * idivrd + imodr) j
 
 -- | For a factored index, tensors up any function defined for (and tagged by)
 -- any prime power
@@ -220,11 +222,11 @@ mulMat arr brr
   = A.fold (+) zero
   $ A.zipWith (*) arr' brr'
   where
-    Z :. _     :. rowsA = unlift (shape arr) :: Z :. Exp Int :. Exp Int
-    Z :. colsB :. _     = unlift (shape brr) :: Z :. Exp Int :. Exp Int
+    Z :. _     :. rowsA = A.unlift (A.shape arr) :: Z :. Exp Int :. Exp Int
+    Z :. colsB :. _     = A.unlift (A.shape brr) :: Z :. Exp Int :. Exp Int
     arr'                = A.replicate (A.lift (Z :. All   :. colsB :. All)) arr
     brr'                = A.replicate (A.lift (Z :. rowsA :. All   :. All)) trr
-    trr                 = compute (transpose brr)
+    trr                 = A.compute (A.transpose brr)
 
 -- | Multiplication by a diagonal matrix along the innermost dimension
 --
@@ -234,7 +236,7 @@ mulDiag
     -> Acc (Array DIM2 r)
     -> Acc (Array DIM2 r)
 mulDiag diag mat
-  = A.generate (shape mat)
+  = A.generate (A.shape mat)
   $ \ix -> mat  ! ix
-         * diag ! index1 (indexHead ix)
+         * diag ! A.index1 (A.indexHead ix)
 

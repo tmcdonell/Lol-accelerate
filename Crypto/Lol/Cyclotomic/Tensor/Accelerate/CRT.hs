@@ -25,7 +25,8 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT (
 
 ) where
 
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        ( Acc, Array, DIM1, DIM2, Exp, Elt, Z(..), (:.)(..) )
+import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger ()
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
@@ -49,7 +50,7 @@ scalarCRT
     => monad (Exp r -> Arr m r)
 scalarCRT =
   let n  = totientPPs (proxy ppsFact (Proxy :: Proxy m))
-      sh = constant (Z :. n)
+      sh = A.constant (Z :. n)
   in
   return $ Arr . A.fill sh
 
@@ -104,7 +105,7 @@ gCRTPrime = do
   (wPow, _) <- crtInfo
   return $ if p <= 2
               then MC (Z :. 1   :. 1) (\_  -> one)
-              else MC (Z :. p-1 :. 1) (\ix -> let Z:.i:._ = unlift ix :: Z :. Exp Int :. Exp Int
+              else MC (Z :. p-1 :. 1) (\ix -> let Z:.i:._ = A.unlift ix :: Z :. Exp Int :. Exp Int
                                               in  one - wPow (i+1))
 
 
@@ -149,14 +150,14 @@ gInvCRTPrime = do
       --   in  phatInv * P.sum [ P.fromIntegral j * wPow ((i+1) * constant (p-1-j))
       --                       | j <- [1..p-1] ]
 
-      arr :: Acc (Vector r)
+      arr :: Acc (Array DIM1 r)
       arr = A.fold (+) zero
-          $ A.generate (constant (Z :. p-1 :. p-2))
-                       (\ix -> let Z :. i :. j = unlift ix
-                               in  P.fromIntegral (j+1) * wPow ((i+1) * (constant p - j)))
+          $ A.generate (A.constant (Z :. p-1 :. p-2))
+                       (\ix -> let Z :. i :. j = A.unlift ix
+                               in  P.fromIntegral (j+1) * wPow ((i+1) * (A.constant p - j)))
 
       f :: Exp DIM2 -> Exp r
-      f ix = phatInv * arr ! indexTail ix
+      f ix = phatInv * arr A.! A.indexTail ix
   --
   return $ MC (Z :. p-1 :. 1) f
 
@@ -265,9 +266,9 @@ ppTwid inv = do
       pp@(p,e) = proxy ppPPow (Proxy :: Proxy pp)
       ppval    = valuePP pp
 
-      diag :: Acc (Vector r)
-      diag = A.generate (constant (Z :. ppval))
-           $ \ix -> let (iq,ir)         = indexHead ix `divMod` constant p
+      diag :: Acc (Array DIM1 r)
+      diag = A.generate (A.constant (Z :. ppval))
+           $ \ix -> let (iq,ir)         = A.indexHead ix `divMod` A.constant p
                         pow'            = ir * digitRev p (e-1) iq
                         pow | inv       = negate pow'
                             | otherwise = pow'
@@ -286,9 +287,9 @@ ppTwidHat inv = do
       pp@(p,e) = proxy ppPPow (Proxy :: Proxy pp)
       pptot    = totientPP pp
 
-      diag :: Acc (Vector r)
-      diag = A.generate (constant (Z :. pptot))
-           $ \ix -> let (iq,ir)         = indexHead ix `divMod` constant (p-1)
+      diag :: Acc (Array DIM1 r)
+      diag = A.generate (A.constant (Z :. pptot))
+           $ \ix -> let (iq,ir)         = A.indexHead ix `divMod` A.constant (p-1)
                         pow'            = (ir+1) * digitRev p (e-1) iq
                         pow | inv       = negate pow'
                             | otherwise = pow'
@@ -303,8 +304,8 @@ ppTwidHat inv = do
 digitRev :: Int -> Int -> Exp Int -> Exp Int
 digitRev p e j
   | e < 1     = zero
-  | otherwise = let (q,r) = j `divMod` constant p
-                in  r * (constant (p ^ (e-1))) + digitRev p (e-1) q
+  | otherwise = let (q,r) = j `divMod` A.constant p
+                in  r * (A.constant (p ^ (e-1))) + digitRev p (e-1) q
 
 
 -- Operations over Prim
@@ -316,8 +317,8 @@ pDFT = do
   (omegaPPow, _) <- crtInfo
   let
       pval = proxy valuePrime (Proxy :: Proxy p)
-      mat  = A.generate (constant (Z :. pval :. pval))
-           $ \ix -> let Z :. i :. j = unlift ix :: Z :. Exp Int :. Exp Int
+      mat  = A.generate (A.constant (Z :. pval :. pval))
+           $ \ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
                     in  omegaPPow (i*j)
   --
   return $ if pval == 2
@@ -330,8 +331,8 @@ pCRT = do
   (omegaPPow, _) <- crtInfo
   let
       pval = proxy valuePrime (Proxy :: Proxy p)
-      mat  = A.generate (constant (Z :. pval-1 :. pval-1))
-           $ \ix -> let Z :. i :. j = unlift ix :: Z :. Exp Int :. Exp Int
+      mat  = A.generate (A.constant (Z :. pval-1 :. pval-1))
+           $ \ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
                     in  omegaPPow ((i+1)*j)
   --
   return $ if pval == 2
@@ -345,8 +346,8 @@ pDFTInv = do
   (omegaPPow, _) <- crtInfo
   let
       pval = proxy valuePrime (Proxy :: Proxy p)
-      mat  = A.generate (constant (Z :. pval :. pval))
-           $ \ix -> let Z :. i :. j = unlift ix :: Z :. Exp Int :. Exp Int
+      mat  = A.generate (A.constant (Z :. pval :. pval))
+           $ \ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
                     in  omegaPPow (-i*j)
   --
   return $ if pval == 2
@@ -361,8 +362,8 @@ pCRTInv = do
   (omegaPPow, _) <- crtInfo
   let
       pval = proxy valuePrime (Proxy :: Proxy p)
-      mat  = A.generate (constant (Z :. pval-1 :. pval-1))
-           $ \ix -> let Z :. i :. j = unlift ix :: Z :. Exp Int :. Exp Int
+      mat  = A.generate (A.constant (Z :. pval-1 :. pval-1))
+           $ \ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
                     in  omegaPPow (negate i * (j+1)) -
                         omegaPPow (j+1)
   --
@@ -378,14 +379,14 @@ butterfly = trans (2, flap)
     flap arr =
       let
           sh :: Exp DIM2
-          sh = A.lift (indexTail (shape arr) :. constant 2)
+          sh = A.lift (A.indexTail (A.shape arr) :. A.constant 2)
 
           f :: Exp DIM2 -> Exp r
-          f ix = let Z :. i :. j = unlift ix
-                     x           = arr ! index2 i 0
-                     y           = arr ! index2 i 1
+          f ix = let Z :. i :. j = A.unlift ix
+                     x           = arr A.! A.index2 i 0
+                     y           = arr A.! A.index2 i 1
                  in
-                 j ==* 0 ? ( x+y, x-y )
+                 j A.==* 0 A.? ( x+y, x-y )
       in
       A.generate sh f
 
@@ -400,10 +401,10 @@ wrapVector
 wrapVector v = do
   vmat <- proxyT v (Proxy :: Proxy m)
   let n  = proxy totientFact (Proxy :: Proxy m)
-      sh = constant (Z :. n)
+      sh = A.constant (Z :. n)
       --
       f :: Exp DIM1 -> Exp r
-      f ix = indexM vmat (A.lift (ix :. constant 0))
+      f ix = indexM vmat (A.lift (ix :. A.constant 0))
   --
   return . Arr $ A.generate sh f
 

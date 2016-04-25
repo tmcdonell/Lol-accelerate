@@ -20,7 +20,8 @@
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
   where
 
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        ( Exp, DIM2, Z(..), (:.)(..) )
+import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
@@ -50,11 +51,11 @@ indexM :: Ring (Exp r) => Matrix r -> Exp DIM2 -> Exp r
 indexM MNil                          _  = one
 indexM (MKron mat (MC (Z:.r:.c) mc)) ix =
   let
-      Z :. i :. j = unlift ix
-      (iq,ir)     = i `divMod` constant r
-      (jq,jr)     = j `divMod` constant c
+      Z :. i :. j = A.unlift ix
+      (iq,ir)     = i `divMod` A.constant r
+      (jq,jr)     = j `divMod` A.constant c
   in
-  indexM mat (index2 iq jq) * mc (index2 ir jr)
+  indexM mat (A.index2 iq jq) * mc (A.index2 ir jr)
 
 
 fMatrix
@@ -85,8 +86,8 @@ ppMatrix mat = tagT $ go (sing :: SPrimePower pp)
               withWitness valuePrime sp
 
           g :: Exp DIM2 -> Exp r
-          g ix = let Z:.i:.j = unlift ix
-                 in  f (index2 (i`mod`constant h) j)
+          g ix = let Z:.i:.j = A.unlift ix
+                 in  f (A.index2 (i`mod`A.constant h) j)
       --
       return $ MC (Z:.h*d:.w) g
 

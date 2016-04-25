@@ -15,7 +15,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 
 import Data.Label
 import System.Console.GetOpt
-
+import Prelude                                          as P
 
 import Data.Array.Accelerate
 import qualified Data.Array.Accelerate.Interpreter      as Interp
@@ -42,7 +42,7 @@ data Backend = Interpreter
 #ifdef ACCELERATE_LLVM_PTX_BACKEND
              | PTX
 #endif
-  deriving (Eq, Bounded)
+  deriving (P.Eq, P.Bounded)
 
 -- The choice of show instance is important because this will be used to
 -- generate the command line flag.

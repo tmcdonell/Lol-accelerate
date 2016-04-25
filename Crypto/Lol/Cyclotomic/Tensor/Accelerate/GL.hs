@@ -24,7 +24,8 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL (
 
 ) where
 
-import Data.Array.Accelerate                                        as A hiding ( fromIntegral )
+import Data.Array.Accelerate                                        ( Acc, Array, DIM2, Exp, Elt, Z(..), (:.)(..) )
+import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger ()
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
@@ -110,12 +111,12 @@ pLInv :: forall p r. (Prim p, Additive (Exp r), Elt r) => Tagged p (Trans r)
 pLInv = pWrap $ \_ arr ->
   let
       f :: Exp DIM2 -> Exp r
-      f ix = let Z :. y :. x = unlift ix
-                 u           = arr ! ix
-                 v           = x >* 0 ? ( arr ! (index2 y (x-1)), zero )
+      f ix = let Z :. y :. x = A.unlift ix
+                 u           = arr A.! ix
+                 v           = x A.>* 0 A.? ( arr A.! (A.index2 y (x-1)), zero )
              in u - v
   in
-  generate (shape arr) f
+  A.generate (A.shape arr) f
 
 -- Multiplication by g_p = 1 - zeta_p in the power basis.
 --
@@ -126,14 +127,14 @@ pGPow :: forall p r. (Prim p, Additive (Exp r), Elt r) => Tagged p (Trans r)
 pGPow = pWrap $ \p arr ->
   let
       f :: Exp DIM2 -> Exp r
-      f ix = let Z :. y :. x = unlift ix
-                 u           = arr ! ix
-                 v           = arr ! index2 y (constant (p-2))
-                 w           = x >* 0 ? ( arr ! index2 y (x-1) , zero )
+      f ix = let Z :. y :. x = A.unlift ix
+                 u           = arr A.! ix
+                 v           = arr A.! A.index2 y (A.constant (p-2))
+                 w           = x A.>* 0 A.? ( arr A.! A.index2 y (x-1) , zero )
              in
              u + v - w
   in
-  generate (shape arr) f
+  A.generate (A.shape arr) f
 
 -- Multiplication by g_p == 1 - zeta_p in the decoding basis
 --
@@ -143,14 +144,14 @@ pGDec = pWrap $ \_ arr ->
       s = A.fold (+) zero arr
 
       f :: Exp DIM2 -> Exp r
-      f ix = let Z :. y :. x = unlift ix
-                 u           = arr ! ix
-                 v           = x ==* 0 ? ( s ! index1 y
-                                         , negate (arr ! index2 x (x-1)) )
+      f ix = let Z :. y :. x = A.unlift ix
+                 u           = arr A.! ix
+                 v           = x A.==* 0 A.? ( s A.! A.index1 y
+                                             , negate (arr A.! A.index2 x (x-1)) )
              in
              u + v
   in
-  generate (shape arr) f
+  A.generate (A.shape arr) f
 
 
 wrapGInv
@@ -176,8 +177,8 @@ divCheck arr den =
       ok       = A.all isZero r
       (ok',q') = run (A.lift (ok,q))  -- TODO: Don't copy 'q' back to the host
   in
-  if indexArray ok' Z
-     then Just (Arr (use q'))
+  if A.indexArray ok' Z
+     then Just (Arr (A.use q'))
      else Nothing
 
 -- Doesn't do division by (odd) p
@@ -189,8 +190,8 @@ pGInvPow = pWrap $ \p arr ->
       sr   = scanr1_2d (+) arr
 
       f :: Exp DIM2 -> Exp r -> Exp r -> Exp r
-      f ix x y  = let i = indexHead ix
-                  in  fromIntegral (constant p-i-1) * x
+      f ix x y  = let i = A.indexHead ix
+                  in  fromIntegral (A.constant p-i-1) * x
                     + fromIntegral (-i-1)           * y
   in
   A.izipWith f sl sr
@@ -201,15 +202,15 @@ pGInvPow = pWrap $ \p arr ->
 pGInvDec :: forall p r. (Prim p, Ring (Exp r), Elt r) => Tagged p (Trans r)
 pGInvDec = pWrap $ \p arr ->
   let
-      nats = generate (shape arr) (\ix -> fromIntegral (indexHead ix) + one)
+      nats = A.generate (A.shape arr) (\ix -> fromIntegral (A.indexHead ix) + one)
       sl   = A.fold (+) zero (A.zipWith (*) arr nats)
       sr   = scanr1_2d (+) arr
 
       f :: Exp DIM2 -> Exp r -> Exp r
-      f ix x = let Z :. j :. _ = unlift ix      :: Z :. Exp Int :. Exp Int
-                   s           = sl ! index1 j
+      f ix x = let Z :. j :. _ = A.unlift ix :: Z :. Exp Int :. Exp Int
+                   s           = sl A.! A.index1 j
                in
-               s - fromIntegral (constant p) * x
+               s - fromIntegral (A.constant p) * x
   in
   A.imap f sr
 
@@ -219,18 +220,18 @@ pGInvDec = pWrap $ \p arr ->
 -- operation, so we may be able to do this more efficiently still.
 --
 scanl1_2d :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Array DIM2 a) -> Acc (Array DIM2 a)
-scanl1_2d f arr = reshape (shape arr) p
+scanl1_2d f arr = A.reshape (A.shape arr) p
   where
-    Z :. h :. w = unlift (shape arr)
-    seg         = A.fill (index1 h) w
+    Z :. h :. w = A.unlift (A.shape arr)
+    seg         = A.fill (A.index1 h) w
     vec         = A.flatten arr
     p           = A.scanl1Seg f vec seg
 
 scanr1_2d :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Array DIM2 a) -> Acc (Array DIM2 a)
-scanr1_2d f arr = reshape (shape arr) p
+scanr1_2d f arr = A.reshape (A.shape arr) p
   where
-    Z :. h :. w = unlift (shape arr)
-    seg         = A.fill (index1 h) w
+    Z :. h :. w = A.unlift (A.shape arr)
+    seg         = A.fill (A.index1 h) w
     vec         = A.flatten arr
     p           = A.scanr1Seg f vec seg
 
