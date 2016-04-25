@@ -61,6 +61,17 @@ newtype Arr (m :: Factored) r = Arr { unArr :: Acc (Array DIM1 r) }
 --
 type role Arr nominal nominal
 
+-- This forces the arguments to be evaluated, so it might be good store this
+-- result and under-the-hood update the operands to now be a 'use', rather than
+-- some (possibly quite large) expression.
+--
+instance A.Eq r => Eq (Arr m r) where
+  a1 == a2 = let r = A.and (A.zipWith (A.==*) (unArr a1) (unArr a2))
+             in  A.indexArray (run r) Z
+
+  a1 /= a2 = let r = A.or (A.zipWith (A./=*) (unArr a1) (unArr a2))
+             in  A.indexArray (run r) Z
+
 
 -- | 'Tensorable represents a "atomic" transform over the base type 'r'. that
 -- can be augmented (tensored) on the lift and right by identity transforms of
