@@ -60,21 +60,21 @@ instance Tensor AT where
   entailShowT   = tag $ Sub Dict
   -- entailModuleT = tag $ Sub Dict
 
-  scalarPow = AT . Pow.scalar
+  scalarPow     = AT . Pow.scalar
 
   -- 'l' converts from decoding-basis representation to powerful-basis
   -- representation; 'lInv' is its inverse.
-  l         = wrap GL.fL
-  lInv      = wrap GL.fLInv
+  l             = wrap GL.fL
+  lInv          = wrap GL.fLInv
 
   -- Multiply by @g@ in the powerful/decoding basis
-  mulGPow   = wrap GL.fGPow
-  mulGDec   = wrap GL.fGDec
+  mulGPow       = wrap GL.fGPow
+  mulGDec       = wrap GL.fGDec
 
   -- Divide by @g@ in the powerful/decoding basis. This operation is only
   -- possible when the input is evenly divisible by @g@.
-  divGPow   = wrapM GL.fGInvPow
-  divGDec   = wrapM GL.fGInvDec
+  -- divGPow       = wrapM GL.fGInvPow
+  -- divGDec       = wrapM GL.fGInvDec
 
 
 -- | Extra instances required to support implementation of 'Tensor' backed by
