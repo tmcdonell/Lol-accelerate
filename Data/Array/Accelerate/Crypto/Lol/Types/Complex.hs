@@ -19,7 +19,7 @@
 module Data.Array.Accelerate.Crypto.Lol.Types.Complex
   where
 
-import Data.Array.Accelerate
+import Data.Array.Accelerate                                        as A
 import Data.Array.Accelerate.Smart
 import Data.Array.Accelerate.Product
 import Data.Array.Accelerate.Array.Sugar
@@ -93,6 +93,9 @@ instance Elt a => Unlift Exp (Complex (Exp a)) where
       in
       Complex (x NP.+: y)
 
+instance A.Eq a => A.Eq (Complex a) where
+  x ==* y = real x ==* real y &&* imag x ==* imag y
+  x /=* y = real x /=* real y ||* imag x /=* imag y
 
 instance (Additive.C (Exp a), Elt a) => Additive.C (Exp (Complex a)) where
   zero   = lift (Additive.zero :: Complex (Exp a))
