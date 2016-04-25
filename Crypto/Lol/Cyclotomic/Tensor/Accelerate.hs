@@ -88,12 +88,15 @@ data AT (m :: Factored) r where
 
 deriving instance Show r => Show (AT m r)
 
+-- Category-theoretic instances
+
 instance Fact m => Functor (AT m) where
   fmap f x = pure f <*> x
 
 instance Fact m => Applicative (AT m) where
-  pure    = ZV . pure
-  f <*> a = f <*> toZV a
+  pure                    = ZV . pure
+  ZV f <*> (toZV -> ZV v) = ZV (f <*> v)
+  _    <*> _              = error "(<*>): AT can never hold an (a -> b)"
 
 instance Fact m => Foldable (AT m) where
   foldMap = foldMapDefault
