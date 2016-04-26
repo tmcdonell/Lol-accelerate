@@ -29,6 +29,7 @@ import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing
 import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger
 import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental
+import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
 import Crypto.Lol.Types.Complex                                     ( Complex(..) )
 import qualified Crypto.Lol.Types.Complex                           as C
@@ -96,6 +97,9 @@ instance Elt a => Unlift Exp (Complex (Exp a)) where
 instance A.Eq a => A.Eq (Complex a) where
   x ==* y = real x ==* real y &&* imag x ==* imag y
   x /=* y = real x /=* real y ||* imag x /=* imag y
+
+instance (ZeroTestable.C (Exp a), Elt a) => ZeroTestable.C (Exp (Complex a)) where
+  isZero c = ZeroTestable.isZero (real c) &&* ZeroTestable.isZero (imag c)
 
 instance (Additive.C (Exp a), Elt a) => Additive.C (Exp (Complex a)) where
   zero   = lift (Additive.zero :: Complex (Exp a))
