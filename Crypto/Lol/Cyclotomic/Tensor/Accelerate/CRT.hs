@@ -47,12 +47,12 @@ import Data.Singletons.Prelude                                      ( Sing(..), 
 --
 scalarCRT
     :: forall monad m r. (Fact m, Elt r, Monad monad)
-    => monad (Exp r -> Arr m r)
+    => monad (r -> Arr m r)
 scalarCRT =
   let n  = totientPPs (proxy ppsFact (Proxy :: Proxy m))
       sh = A.constant (Z :. n)
   in
-  return $ Arr . A.fill sh
+  return $ Arr . A.fill sh . A.constant
 
 
 -- | Multiply by @g_m@ in the CRT basis (when it exists)

@@ -79,6 +79,15 @@ instance Tensor AT where
   divGPow       = wrapM GL.fGInvPow
   divGDec       = wrapM GL.fGInvDec
 
+  -- A tuple of all the operations relating to the CRT basis, in a single
+  -- 'Maybe' value for safety. Clients should typically class the corresponding
+  -- top-level functions instead.
+  crtFuncs      = (,,,,) <$> ((AT.) <$> CRT.scalarCRT)
+                         <*> (wrap  <$> CRT.mulGCRT)
+                         <*> (wrap  <$> CRT.divGCRT)
+                         <*> (wrap  <$> CRT.fCRT)
+                         <*> (wrap  <$> CRT.fCRTInv)
+
 
 -- | Extra instances required to support implementation of 'Tensor' backed by
 -- Accelerate.
@@ -117,6 +126,11 @@ instance Fact m => Foldable (AT m) where
 
 instance Fact m => Traversable (AT m) where
   traverse f a = traverse f (toZV a)
+
+
+-- Numeric prelude instances
+
+
 
 
 -- Conversions
