@@ -23,6 +23,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate
 import Data.Array.Accelerate                                        as A
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
+import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 import qualified Data.Array.Accelerate.Crypto.Lol.Types.Complex     as Complex ()
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
@@ -49,7 +50,9 @@ import Debug.Trace
 -- | Accelerate-backed Tensor instance
 --
 instance Tensor AT where
-  type TElt AT r = (Elt r, A.Eq r)
+  type TElt AT r = ( Elt r
+                   , A.Eq r                   -- for entailEqT
+                   , ZeroTestable.C (Exp r))  -- for divGPow, divGDec
   type TRep AT r = Exp r
 
   entailIndexT  = tag $ Sub Dict
@@ -73,8 +76,8 @@ instance Tensor AT where
 
   -- Divide by @g@ in the powerful/decoding basis. This operation is only
   -- possible when the input is evenly divisible by @g@.
-  -- divGPow       = wrapM GL.fGInvPow
-  -- divGDec       = wrapM GL.fGInvDec
+  divGPow       = wrapM GL.fGInvPow
+  divGDec       = wrapM GL.fGInvDec
 
 
 -- | Extra instances required to support implementation of 'Tensor' backed by
