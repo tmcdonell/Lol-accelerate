@@ -10,15 +10,13 @@ packages:
     commit: 9d0118f8ef3cd47d64a737b9d7d1d902a5ee72b7
   extra-dep: true
 
-- '../lol/lol'
-# - location:
-#     git:    https://github.com/tmcdonell/Lol.git
-#     commit: 634da1b6fd4b5927239025e4c8bbe64736e297d5
-#   extra-dep: true
-#   subdirs:
-#     - 'lol'
+- location:
+    git:    https://github.com/tmcdonell/Lol.git
+    commit: c7cd462c079616f5654189aa78eb15064e9c4d32
+  extra-dep: true
+  subdirs:
+    - 'lol'
 
-# - '../../numeric-prelude-accelerate'
 - location:
     git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
     commit: a20d0278a8905ce05fd357fdd5594692edddc4e6
