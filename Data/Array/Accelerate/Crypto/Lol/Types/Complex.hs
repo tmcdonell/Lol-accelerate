@@ -26,7 +26,7 @@ import Data.Array.Accelerate.Array.Sugar
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
-import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing
+-- import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing
 import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger
 import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
@@ -36,13 +36,13 @@ import qualified Crypto.Lol.Types.Complex                           as C
 import qualified Number.Complex                                     as NP
 
 
--- | Rounds the real and imaginary components to the nearest integral
---
-roundComplex
-    :: forall a b. (RealRing.C (Exp a), ToInteger.C (Exp b), Elt a, Elt b)
-    => Exp (Complex a)
-    -> Exp (b, b)
-roundComplex = lift1 (C.roundComplex :: Complex (Exp a) -> (Exp b, Exp b))
+-- -- | Rounds the real and imaginary components to the nearest integral
+-- --
+-- roundComplex
+--     :: forall a b. (RealRing.C (Exp a), ToInteger.C (Exp b), Elt a, Elt b)
+--     => Exp (Complex a)
+--     -> Exp (b, b)
+-- roundComplex = lift1 (C.roundComplex :: Complex (Exp a) -> (Exp b, Exp b))
 
 -- | 'cis' @t@ is a complex value with magnitude 1 and phase @t@ (modulo @2*pi@)
 --
