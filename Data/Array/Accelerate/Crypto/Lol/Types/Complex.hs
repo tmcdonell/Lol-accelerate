@@ -27,7 +27,7 @@ import Data.Array.Accelerate.Array.Sugar
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 -- import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing
-import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger
+-- import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger
 import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
