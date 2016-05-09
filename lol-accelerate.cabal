@@ -55,6 +55,7 @@ library
       Crypto.Lol.Cyclotomic.Tensor.Accelerate
 
   other-modules:
+      Data.Array.Accelerate.Crypto.Lol.CRTrans
       Data.Array.Accelerate.Crypto.Lol.Types.Complex
 
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT

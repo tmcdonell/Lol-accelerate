@@ -37,6 +37,7 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 
 -- lol-accelerate
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               ()
+import Data.Array.Accelerate.Crypto.Lol.CRTrans                     ()
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
