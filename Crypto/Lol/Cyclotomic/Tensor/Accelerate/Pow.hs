@@ -26,8 +26,8 @@ import Crypto.Lol.LatticePrelude
 -- | Embeds a scalar into a powerful-basis representation, tagged by the
 -- cyclotomic index.
 --
-scalar :: forall m r. (Fact m, Additive (Exp r), Elt r) => r -> Arr m r
-scalar (constant -> r) =
+scalar :: forall m r. (Fact m, Additive (Exp r), Elt r) => Exp r -> Arr m r
+scalar r =
   let
       n  = proxy totientFact (Proxy :: Proxy m)
       sh = constant (Z :. n)

@@ -57,6 +57,7 @@ library
   other-modules:
       Data.Array.Accelerate.Crypto.Lol.Types.Complex
 
+      Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL

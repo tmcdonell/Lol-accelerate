@@ -1,10 +1,14 @@
-{-# LANGUAGE DataKinds          #-}
-{-# LANGUAGE GADTs              #-}
-{-# LANGUAGE KindSignatures     #-}
-{-# LANGUAGE NoImplicitPrelude  #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies       #-}
-{-# LANGUAGE ViewPatterns       #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE InstanceSigs        #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving  #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE ViewPatterns        #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate
 -- Copyright   : [2016] Trevor L. McDonell
@@ -17,34 +21,36 @@
 -- Tensor instance backed by Accelerate
 --
 
-module Crypto.Lol.Cyclotomic.Tensor.Accelerate
-  where
+module Crypto.Lol.Cyclotomic.Tensor.Accelerate (
 
+  Tensor(..), AT, TRep,
+
+) where
+
+-- accelerate
 import Data.Array.Accelerate                                        as A
+
+-- numeric-prelude-accelerate
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
-import qualified Data.Array.Accelerate.Crypto.Lol.Types.Complex     as Complex ()
 
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
+-- lol-accelerate
+import Data.Array.Accelerate.Crypto.Lol.Types.Complex               ()
+
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL         as GL
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow        as Pow
 
+-- lol
 import Crypto.Lol.Cyclotomic.Tensor
-import Crypto.Lol.Types.IZipVector
 import Crypto.Lol.LatticePrelude                                    as P
 
-import qualified Data.Vector.Generic                                as V
-
+-- other libraries
 import Control.Applicative
 import Data.Constraint
-import Data.Foldable
-import Data.Maybe
-import Data.Traversable
-
-import Debug.Trace
 
 
 -- | Accelerate-backed Tensor instance
@@ -52,8 +58,8 @@ import Debug.Trace
 instance Tensor AT where
   type TElt AT r = ( Elt r
                    , A.Eq r                   -- for entailEqT
-                   , ZeroTestable.C (Exp r))  -- for divGPow, divGDec
-  type TRep AT r = Exp r
+                   , ZeroTestable.C (Exp r)   -- for divGPow, divGDec
+                   )
 
   entailIndexT  = tag $ Sub Dict
   entailEqT     = tag $ Sub Dict
@@ -63,6 +69,10 @@ instance Tensor AT where
   entailShowT   = tag $ Sub Dict
   -- entailModuleT = tag $ Sub Dict
 
+  -- Make a raw value available for process in Accelerate
+  constant x    = tag (A.constant x)
+
+  -- Convert a scalar to a tensor in the powerful basis
   scalarPow     = AT . Pow.scalar
 
   -- 'l' converts from decoding-basis representation to powerful-basis
@@ -82,98 +92,21 @@ instance Tensor AT where
   -- A tuple of all the operations relating to the CRT basis, in a single
   -- 'Maybe' value for safety. Clients should typically class the corresponding
   -- top-level functions instead.
-  crtFuncs      = (,,,,) <$> ((AT.) <$> CRT.scalarCRT)
+  crtFuncs      = (,,,,) <$> ((AT.) <$> CRT.scalar)
                          <*> (wrap  <$> CRT.mulGCRT)
                          <*> (wrap  <$> CRT.divGCRT)
                          <*> (wrap  <$> CRT.fCRT)
                          <*> (wrap  <$> CRT.fCRTInv)
 
+  fmapT f       = wrap (Arr . A.map f . unArr)
 
--- | Extra instances required to support implementation of 'Tensor' backed by
--- Accelerate.
---
--- Note that instances from 'Functor', 'Applicative', 'Foldable' and
--- 'Traversable' are computed via 'toZV' which requires an /O(n)/ conversion
--- step to a *boxed* vector representation, so should be avoided as much as
--- possible.
---
-data AT (m :: Factored) r where
-  AT :: Elt r => Arr m r -> AT m r
-  ZV :: IZipVector m r -> AT m r
+  zipWithT f xs ys = AT $ Arr (A.zipWith f xs' ys')
+    where
+      AT (Arr xs') = toAT xs  -- this style rather than ViewPatterns to...
+      AT (Arr ys') = toAT ys  -- ...avoid non-exhaustive pattern warnings
 
--- Standard instances
-
-deriving instance Show r => Show (AT m r)
-
-instance (P.Eq r, A.Eq r) => P.Eq (AT m r) where
-  ZV a           == ZV b           = a == b
-  (toAT -> AT a) == (toAT -> AT b) = a == b
-  _              == _              = error "I know words. A have all the best words."
-
-
--- Category-theoretic instances
-
-instance Fact m => Functor (AT m) where
-  fmap f x = pure f <*> x
-
-instance Fact m => Applicative (AT m) where
-  pure                    = ZV . pure
-  ZV f <*> (toZV -> ZV v) = ZV (f <*> v)
-  _    <*> _              = error "(<*>): AT can never hold an (a -> b)"
-
-instance Fact m => Foldable (AT m) where
-  foldMap = foldMapDefault
-
-instance Fact m => Traversable (AT m) where
-  traverse f a = traverse f (toZV a)
-
-
--- Numeric prelude instances
-
-
-
-
--- Conversions
--- -----------
---
--- Avoid converting between representations as much as possible.
-
--- | /O(n)/ Convert internal representation to Accelerate
---
-toAT :: Elt r => AT m r -> AT m r
-toAT a@AT{} = a
-toAT (ZV z) =
-  let
-      v          = unIZipVector z
-      sh         = Z :. V.length v
-      f (Z :. i) = v V.! i
-  in
-  trace "Lol.Accelerate.toAT" $ -- debugging
-  AT . Arr $ use (A.fromFunction sh f)
-
--- | /O(n)/ Convert internal representation to IZipVector. Note that this
--- entails executing the Accelerate computation.
---
-toZV :: Fact m => AT m r -> AT m r
-toZV v@ZV{}         = v
-toZV (AT (Arr acc)) =
-  let
-      arr    = run acc
-      Z :. n = arrayShape arr
-      f i    = arr `indexArray` (Z :. i)
-  in
-  trace "Lol.Accelerate.toZV" $ -- debugging
-  ZV $ fromMaybe (error "Accelerate.toZV: internal error")
-     $ iZipVector (V.generate n f)
-
-wrap :: Elt r => (Arr l r -> Arr m r) -> AT l r -> AT m r
-wrap f (toAT -> AT arr) = AT (f arr)
-wrap _ _                = error "You can find work and sort out your life any time..."
-
-wrapM :: (Monad monad, Elt r)
-      => (Arr l r -> monad (Arr m r))
-      -> AT l r
-      -> monad (AT m r)
-wrapM f (toAT -> AT arr) = AT <$> f arr
-wrapM _ _                = error "The pub closes in five hours"
+  unzipT xs = (AT (Arr ls), AT (Arr rs))
+    where
+      AT (Arr xs') = toAT xs
+      (ls,rs)      = A.unzip xs'
 

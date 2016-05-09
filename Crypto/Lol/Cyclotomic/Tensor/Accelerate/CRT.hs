@@ -18,7 +18,7 @@
 
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT (
 
-  scalarCRT,
+  scalar,
   fCRT, fCRTInv,
   gCRT, gInvCRT,
   mulGCRT, divGCRT,
@@ -45,14 +45,14 @@ import Data.Singletons.Prelude                                      ( Sing(..), 
 
 -- | Embeds a scalar into the CRT basis (when it exists)
 --
-scalarCRT
+scalar
     :: forall monad m r. (Fact m, Elt r, Monad monad)
-    => monad (r -> Arr m r)
-scalarCRT =
+    => monad (Exp r -> Arr m r)
+scalar =
   let n  = totientPPs (proxy ppsFact (Proxy :: Proxy m))
       sh = A.constant (Z :. n)
   in
-  return $ Arr . A.fill sh . A.constant
+  return $ Arr . A.fill sh -- . A.constant
 
 
 -- | Multiply by @g_m@ in the CRT basis (when it exists)
