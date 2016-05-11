@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE ViewPatterns          #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic
@@ -83,6 +84,14 @@ instance (ReflectsTI q z, ToInteger z, Ring (Exp z), Typeable (ZqBasic q)) => Ri
           reduce' (x' LP.* y')
   --
   fromInteger = constant . fromInteger
+
+
+-- Standard instances
+-- ------------------
+
+instance (A.Eq z, Typeable (ZqBasic q)) => A.Eq (ZqBasic q z) where
+  (unliftZq -> ZqB x) ==* (unliftZq -> ZqB y) = x ==* y
+  (unliftZq -> ZqB x) /=* (unliftZq -> ZqB y) = x /=* y
 
 
 -- Utilities
