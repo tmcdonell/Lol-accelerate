@@ -23,9 +23,12 @@ import Data.Array.Accelerate.Product                                as A
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
+import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
+
+import qualified Algebra.ZeroTestable                               as NPZT
 
 import Crypto.Lol.CRTrans
 import Crypto.Lol.LatticePrelude                                    as LP
@@ -84,6 +87,13 @@ instance (ReflectsTI q z, ToInteger z, Ring (Exp z), Typeable (ZqBasic q)) => Ri
           reduce' (x' LP.* y')
   --
   fromInteger = constant . fromInteger
+
+
+instance (ZeroTestable.C (Exp z), Elt z, Typeable (ZqBasic q)) => ZeroTestable.C (Exp (ZqBasic q z)) where
+  isZero (unliftZq -> ZqB z) = ZeroTestable.isZero z
+
+instance NPZT.C (Exp z) where
+  isZero = error "numeric-prelude error: use Data.Array.Accelerate.Algebra.ZeroTestable.isZero instead"
 
 
 -- Standard instances
