@@ -44,6 +44,7 @@ library
     , constraints                       >= 0.8
     , fclabels                          >= 2.0
     , lol                               >= 0.2
+    , MonadRandom                       >= 0.4
     , numeric-prelude                   >= 0.4.2
     , numeric-prelude-accelerate        >= 0.1
     , singletons                        >= 1.1.2.1

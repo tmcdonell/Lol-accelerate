@@ -1,10 +1,10 @@
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE NoImplicitPrelude   #-}
-{-# LANGUAGE StandaloneDeriving  #-}
-{-# LANGUAGE ViewPatterns        #-}
+{-# LANGUAGE DataKinds          #-}
+{-# LANGUAGE GADTs              #-}
+{-# LANGUAGE KindSignatures     #-}
+{-# LANGUAGE NoImplicitPrelude  #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies       #-}
+{-# LANGUAGE ViewPatterns       #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
 -- Copyright   : [2016] Trevor L. McDonell
@@ -31,8 +31,9 @@ import Crypto.Lol.LatticePrelude                                    as P
 
 -- other libraries
 import Control.Applicative
-import Data.Maybe
+import Control.Monad.Random
 import Data.Foldable
+import Data.Maybe
 import Data.Traversable
 import qualified Data.Vector.Generic                                as V
 
@@ -87,6 +88,11 @@ instance Fact m => Traversable (AT m) where
 -- Numeric prelude instances
 
 
+-- Miscellaneous instances
+
+instance (Elt r, Random r, Fact m) => Random (AT m r) where
+  random  = runRand $ AT <$> liftRand random
+  randomR = error "AT.randomR: not supported"
 
 
 -- Conversions

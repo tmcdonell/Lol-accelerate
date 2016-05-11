@@ -40,6 +40,8 @@ import Crypto.Lol.LatticePrelude
 
 import Data.Singletons.Prelude                                      ( Sing(..), sing )
 
+import Control.Monad
+import Control.Monad.Random
 import Text.Printf
 
 
@@ -71,6 +73,17 @@ instance A.Eq r => Eq (Arr m r) where
 
   a1 /= a2 = let r = A.or (A.zipWith (A./=*) (unArr a1) (unArr a2))
              in  A.indexArray (run r) Z
+
+
+instance (Elt r, Random r, Fact m) => Random (Arr m r) where
+  randomR = error "Arr.randomR: not supported"
+  random  =
+    let n  = proxy totientFact (Proxy::Proxy m)
+        sh = Z :. n
+    in
+    runRand $ do
+      xs     <- replicateM n (liftRand random)
+      return $! Arr (A.use (A.fromList sh xs))
 
 
 -- | 'Tensorable represents a "atomic" transform over the base type 'r'. that
