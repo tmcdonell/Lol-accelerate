@@ -25,6 +25,7 @@ import Data.Array.Accelerate.Product
 import Data.Array.Accelerate.Array.Sugar
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
+import qualified Data.Array.Accelerate.Algebra.Field                as Field
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 -- import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing
 -- import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger
@@ -111,4 +112,8 @@ instance (Ring.C (Exp a), Elt a) => Ring.C (Exp (Complex a)) where
   (*)           = lift2 ((Ring.*) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
   one           = lift (Ring.one :: Complex (Exp a))
   fromInteger x = lift (Ring.fromInteger x :: Complex (Exp a))
+
+instance (Field.C (Exp a), Elt a) => Field.C (Exp (Complex a)) where
+  (/)             = lift2 ((Field./) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
+  fromRational' x = lift (Field.fromRational' x :: Complex (Exp a))
 
