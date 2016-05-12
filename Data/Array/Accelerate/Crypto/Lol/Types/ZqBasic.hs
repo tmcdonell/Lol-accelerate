@@ -15,7 +15,7 @@
 module Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic
   where
 
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        as A hiding ( (-) )
 import Data.Array.Accelerate.Array.Sugar                            as A
 import Data.Array.Accelerate.Smart                                  as A
 import Data.Array.Accelerate.Type                                   as A
@@ -29,22 +29,26 @@ import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
+import Data.Array.Accelerate.Crypto.Lol.Reflects
+
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
 
-import qualified Algebra.ZeroTestable                               as NPZT
-
 import Crypto.Lol.CRTrans
-import Crypto.Lol.LatticePrelude                                    as LP
-import Crypto.Lol.Reflects
+import Crypto.Lol.LatticePrelude                                    as LP hiding ( modinv )
 import Crypto.Lol.Types.FiniteField
 import Crypto.Lol.Types.ZPP
 import Crypto.Lol.Types.ZqBasic
 
+import qualified Algebra.ZeroTestable                               as NPZT
+
+import Math.NumberTheory.Primes                                     ( factorise, isPrime )
+
+import Control.Applicative                                          ( (<$>), (<*>) )
 import Data.Typeable
 import Unsafe.Coerce
 
 
--- ZqBasic instances
+-- CRTrans instances
 -- -----------------
 
 instance (ReflectsTI q z, Ring (Exp (ZqBasic q z)), Typeable (ZqBasic q))
@@ -55,6 +59,54 @@ instance (ReflectsTI q z, Ring (Exp (ZqBasic q z)), Typeable (ZqBasic q))
                         in  A.fromReal (A.fromIntegral z)
   fromExt = tag $ reduce' . A.round . A.real
 
+
+instance (ReflectsTI q z, Ring (Exp z), PID (Exp z), ToInteger z, Enumerable (ZqBasic q z), Typeable (ZqBasic q))
+    => CRTrans Maybe (Exp Int) (Exp (ZqBasic q z)) where
+  crtInfo = (,) <$> principalRootOfUnity
+                <*> mhatInv
+
+-- | Yield the /principal/ @m@th root of unity @omega_m@ in @Z_q^*@. The
+-- implementation requires @q@ to be prime. It works by finding a generator in
+-- @Z_q^*@ and raising it to the @(q-1)/m@ power.
+--
+-- Note that we make heavy use of metaprogramming to compute the value omega,
+-- which otherwise would be quite difficult to obtain.
+--
+principalRootOfUnity
+    :: forall m q z. ( ReflectsTI q z, Ring z, ToInteger z, Enumerable (ZqBasic q z)
+                     , Reflects m (Exp Int), Ring (Exp z), Typeable (ZqBasic q) )
+    => TaggedT m Maybe (Exp Int -> Exp (ZqBasic q z))
+principalRootOfUnity =
+  let
+      q        = LP.fromIntegral (proxy value (Proxy::Proxy q) :: z)    -- use Integer for intermediates
+      mval     = let Exp (Const v) = proxy value (Proxy::Proxy m) in v  -- hax!!
+      order    = q-1                                                    -- order is Zq^* (assuming q is prime)
+      pfactors = fmap LP.fst (factorise order)                          -- the primes dividing the order of Zq^*
+      exps     = fmap (LP.div order) pfactors                           -- powers we need to check
+      isGen x  = x^order == one && LP.all (\e -> x^e /= one) exps       -- whether an element is a generator of Zq^*
+      (mq,mr)  = order `LP.divMod` LP.fromIntegral mval
+      omega    = head (LP.filter isGen values) ^ mq :: ZqBasic q z
+  in
+  tagT $ if isPrime q && mr == 0
+            then Just $ \i -> A.iterate (i `LP.mod` constant mval) (LP.* constant omega) one -- omega ** (i `mod` m) ??
+            else Nothing
+
+mhatInv
+    :: forall m q z. ( ReflectsTI q z, Reflects m (Exp Int), PID (Exp z)
+                     , A.Num z, A.FromIntegral Int z, Elt z, Typeable (ZqBasic q)
+                     )
+    => TaggedT m Maybe (Exp (ZqBasic q z))
+mhatInv =
+  let q    = constant $ proxy value (Proxy::Proxy q)  :: Exp z
+      mval = proxy value (Proxy::Proxy m)             :: Exp Int
+      mhat = let (d,m) = LP.divMod mval 2 -- this is @valueHat mval@ lifted to Exp
+             in  m ==* 0 ? ( d, mval )
+  in
+  return $ reduce' (A.fromIntegral mhat `modinv` q)
+
+
+-- ZPP instance
+-- ------------
 
 instance ( PPow pp, zq ~ ZqBasic pp z, PrimeField (ZpOf zq), Ring zq, Ring (ZpOf zq), ToInteger z
          , Ring (Exp z), A.Integral z, A.IsIntegral z, Typeable pp)
@@ -95,13 +147,10 @@ instance (ReflectsTI q z, ToInteger z, Ring (Exp z), Typeable (ZqBasic q)) => Ri
 instance (ReflectsTI q z, ToInteger z, PID (Exp z), Typeable (ZqBasic q))
     => Field.C (Exp (ZqBasic q z)) where
   recip x = let
-                q             = constant $ proxy value (Proxy::Proxy q)
-                ZqB z         = unliftZq x
-                (d, (_, inv)) = extendedGCD q z
-                r             = d ==* one ? ( inv `LP.mod` q
-                                            , {- TLM: error!!?1 -} zero )
+                q     = constant $ proxy value (Proxy::Proxy q)
+                ZqB z = unliftZq x
             in
-            A.lift (ZqB r)
+            A.lift (ZqB (z `modinv` q))
 
 instance (Field (Exp (ZqBasic q z)), Typeable (ZqBasic q)) => IntegralDomain.C (Exp (ZqBasic q z)) where
   divMod a b = (a LP./ b, zero)
@@ -133,6 +182,16 @@ reduce'
 reduce' x = A.lift (ZqB z)
   where
     z = x `A.mod` constant (proxy value (Proxy::Proxy q))
+
+
+-- | Inverse of @a@ modulo @q@, in range @[0..q-1]@.
+--
+-- XXX: How do we signal error from Accelerate?
+--
+modinv :: (PID (Exp i), A.Eq i) => Exp i -> Exp i -> Exp i
+modinv a q =
+  let (d, (_, inv)) = extendedGCD q a
+  in  d ==* one ? ( inv `LP.mod` q, {- TLM: error!!?1 -} zero )
 
 
 unliftZq :: (Elt z, Typeable (ZqBasic q)) => Exp (ZqBasic q z) -> ZqBasic q (Exp z)
