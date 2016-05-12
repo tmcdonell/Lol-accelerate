@@ -22,6 +22,9 @@ import Data.Array.Accelerate.Type                                   as A
 import Data.Array.Accelerate.Product                                as A
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
+import qualified Data.Array.Accelerate.Algebra.Field                as Field
+import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain
+import qualified Data.Array.Accelerate.Algebra.PrincipalIdealDomain as PID ()
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
@@ -88,6 +91,17 @@ instance (ReflectsTI q z, ToInteger z, Ring (Exp z), Typeable (ZqBasic q)) => Ri
   --
   fromInteger = constant . fromInteger
 
+
+instance (ReflectsTI q z, ToInteger z, PID (Exp z), Typeable (ZqBasic q))
+    => Field.C (Exp (ZqBasic q z)) where
+  recip x = let
+                q             = constant $ proxy value (Proxy::Proxy q)
+                ZqB z         = unliftZq x
+                (d, (_, inv)) = extendedGCD q z
+                r             = d ==* one ? ( inv `LP.mod` q
+                                            , {- TLM: error!!?1 -} zero )
+            in
+            A.lift (ZqB r)
 
 instance (ZeroTestable.C (Exp z), Elt z, Typeable (ZqBasic q)) => ZeroTestable.C (Exp (ZqBasic q z)) where
   isZero (unliftZq -> ZqB z) = ZeroTestable.isZero z
