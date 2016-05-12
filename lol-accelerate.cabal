@@ -57,6 +57,7 @@ library
 
   other-modules:
       Data.Array.Accelerate.Crypto.Lol.CRTrans
+      Data.Array.Accelerate.Crypto.Lol.Reflects
       Data.Array.Accelerate.Crypto.Lol.Types.Complex
       Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic
 
