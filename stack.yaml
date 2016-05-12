@@ -12,10 +12,11 @@ packages:
 
 - location:
     git:    https://github.com/tmcdonell/Lol.git
-    commit: 7377c542743adab43369266ec7ab31a93c0e7714
+    commit: e6cea42c0b77354f5affbd82d148d335e267c993
   extra-dep: true
   subdirs:
     - 'lol'
+    - 'lol-test'
 
 - location:
     git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
@@ -63,6 +64,9 @@ flags:
     cuda: false
     llvm-cpu: false
     llvm-gpu: false
+
+  lol-test:
+    accelerate: true
 
 # Extra package databases containing global packages
 extra-package-dbs: []
