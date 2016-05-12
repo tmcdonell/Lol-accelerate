@@ -103,6 +103,9 @@ instance (ReflectsTI q z, ToInteger z, PID (Exp z), Typeable (ZqBasic q))
             in
             A.lift (ZqB r)
 
+instance (Field (Exp (ZqBasic q z)), Typeable (ZqBasic q)) => IntegralDomain.C (Exp (ZqBasic q z)) where
+  divMod a b = (a LP./ b, zero)
+
 instance (ZeroTestable.C (Exp z), Elt z, Typeable (ZqBasic q)) => ZeroTestable.C (Exp (ZqBasic q z)) where
   isZero (unliftZq -> ZqB z) = ZeroTestable.isZero z
 
