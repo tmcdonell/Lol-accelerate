@@ -143,21 +143,23 @@ gInvCRTPrime = do
       --
       --      Be wary of introducing nested parallelism...
       --
-      -- f :: Exp DIM2 -> Exp r
-      -- f _ | p <= 2 = one
-      -- f ix         =
-      --   let Z :. i :. _ = unlift ix :: Z :. Exp Int :. Exp Int
-      --   in  phatInv * P.sum [ P.fromIntegral j * wPow ((i+1) * constant (p-1-j))
-      --                       | j <- [1..p-1] ]
-
-      arr :: Acc (Array DIM1 r)
-      arr = A.fold (+) zero
-          $ A.generate (A.constant (Z :. p-1 :. p-2))
-                       (\ix -> let Z :. i :. j = A.unlift ix
-                               in  P.fromIntegral (j+1) * wPow ((i+1) * (A.constant p - j)))
-
       f :: Exp DIM2 -> Exp r
-      f ix = phatInv * arr A.! A.indexTail ix
+      f _ | p <= 2 = one
+      f ix         =
+        let Z :. i :. _ = A.unlift ix :: Z :. Exp Int :. Exp Int
+        in  phatInv * P.sum [ P.fromIntegral j * wPow ((i+1) * A.constant (p-1-j))
+                            | j <- [1..p-1] ]
+
+      -- TLM: need extra constraints in order to use P.fromIntegral here
+      --
+      -- arr :: Acc (Array DIM1 r)
+      -- arr = A.fold (+) zero
+      --     $ A.generate (A.constant (Z :. p-1 :. p-2))
+      --                  (\ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
+      --                          in  P.fromIntegral (j+1) * wPow ((i+1) * (A.constant p - j)))
+
+      -- f :: Exp DIM2 -> Exp r
+      -- f ix = phatInv * arr A.! A.indexTail ix
   --
   return $ MC (Z :. p-1 :. 1) f
 
