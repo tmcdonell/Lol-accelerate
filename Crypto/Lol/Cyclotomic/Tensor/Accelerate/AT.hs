@@ -37,7 +37,7 @@ import Data.Maybe
 import Data.Traversable
 import qualified Data.Vector.Generic                                as V
 
-import Debug.Trace
+-- import Debug.Trace
 
 
 -- | Tensor backed by Accelerate stages the computation as an expression
@@ -110,7 +110,7 @@ toAT (ZV z) =
       sh         = Z :. V.length v
       f (Z :. i) = v V.! i
   in
-  trace "Lol.Accelerate.toAT" $ -- debugging
+  -- trace "Lol.Accelerate.toAT" $ -- debugging
   AT . Arr $ use (A.fromFunction sh f)
 
 -- | /O(n)/ Convert internal representation to IZipVector. Note that this
@@ -124,7 +124,7 @@ toZV (AT (Arr acc)) =
       Z :. n = arrayShape arr
       f i    = arr `indexArray` (Z :. i)
   in
-  trace "Lol.Accelerate.toZV" $ -- debugging
+  -- trace "Lol.Accelerate.toZV" $ -- debugging
   ZV $ fromMaybe (error "Accelerate.toZV: internal error")
      $ iZipVector (V.generate n f)
 
