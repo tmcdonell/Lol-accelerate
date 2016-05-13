@@ -29,12 +29,12 @@ import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
-import Data.Array.Accelerate.Crypto.Lol.Reflects
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
 
 import Crypto.Lol.CRTrans
 import Crypto.Lol.LatticePrelude                                    as LP hiding ( modinv )
+import Crypto.Lol.Reflects
 import Crypto.Lol.Types.FiniteField
 import Crypto.Lol.Types.ZPP
 import Crypto.Lol.Types.ZqBasic
@@ -74,12 +74,12 @@ instance (ReflectsTI q z, Ring (Exp z), PID (Exp z), ToInteger z, Enumerable (Zq
 --
 principalRootOfUnity
     :: forall m q z. ( ReflectsTI q z, Ring z, ToInteger z, Enumerable (ZqBasic q z)
-                     , Reflects m (Exp Int), Ring (Exp z), Typeable (ZqBasic q) )
+                     , Reflects m Int, Ring (Exp z), Typeable (ZqBasic q) )
     => TaggedT m Maybe (Exp Int -> Exp (ZqBasic q z))
 principalRootOfUnity =
   let
       q        = LP.fromIntegral (proxy value (Proxy::Proxy q) :: z)    -- use Integer for intermediates
-      mval     = let Exp (Const v) = proxy value (Proxy::Proxy m) in v  -- hax!!
+      mval     = proxy value (Proxy::Proxy m)
       order    = q-1                                                    -- order is Zq^* (assuming q is prime)
       pfactors = fmap LP.fst (factorise order)                          -- the primes dividing the order of Zq^*
       exps     = fmap (LP.div order) pfactors                           -- powers we need to check
@@ -92,13 +92,13 @@ principalRootOfUnity =
             else Nothing
 
 mhatInv
-    :: forall m q z. ( ReflectsTI q z, Reflects m (Exp Int), PID (Exp z)
+    :: forall m q z. ( ReflectsTI q z, Reflects m Int, PID (Exp z)
                      , A.Num z, A.FromIntegral Int z, Elt z, Typeable (ZqBasic q)
                      )
     => TaggedT m Maybe (Exp (ZqBasic q z))
 mhatInv =
   let q    = constant $ proxy value (Proxy::Proxy q)  :: Exp z
-      mval = proxy value (Proxy::Proxy m)             :: Exp Int
+      mval = constant $ proxy value (Proxy::Proxy m)  :: Exp Int
       mhat = let (d,m) = LP.divMod mval 2 -- this is @valueHat mval@ lifted to Exp
              in  m ==* 0 ? ( d, mval )
   in

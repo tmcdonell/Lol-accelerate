@@ -29,12 +29,12 @@ import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental ()
 
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
-import Data.Array.Accelerate.Crypto.Lol.Reflects
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
 
 import Crypto.Lol.CRTrans
 import Crypto.Lol.LatticePrelude                                    as LP
+import Crypto.Lol.Reflects
 
 
 -- CRTrans
@@ -56,11 +56,11 @@ instance (Monad monad, Transcendental (Exp a), A.Num a, A.FromIntegral Int a, El
   crtInfo = crtInfoC
 
 crtInfoC
-    :: forall monad m a. (Monad monad, Reflects m (Exp Int), Transcendental (Exp a), A.Num a, A.FromIntegral Int a, Elt a)
+    :: forall monad m a. (Monad monad, Reflects m Int, Transcendental (Exp a), A.Num a, A.FromIntegral Int a, Elt a)
     => TaggedT m monad (CRTInfo (Exp Int) (Exp (Complex a)))
 crtInfoC =
   let
-      mval = proxy value (Proxy::Proxy m)
+      mval = constant $ proxy value (Proxy::Proxy m)
       mhat = let (d,m) = LP.divMod mval 2 -- this is @valueHat mval@ lifted to Exp
              in  m ==* 0 ? ( d, mval )
   in

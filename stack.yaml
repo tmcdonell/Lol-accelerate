@@ -12,7 +12,7 @@ packages:
 
 - location:
     git:    https://github.com/tmcdonell/Lol.git
-    commit: e6cea42c0b77354f5affbd82d148d335e267c993
+    commit: f7afb274842f5a0a208d0eeaab61cb301dacbfcb
   extra-dep: true
   subdirs:
     - 'lol'
