@@ -208,9 +208,9 @@ ppCRT
 ppCRT = go (sing :: SPrimePower pp)
   where
     go :: Sing pp -> TaggedT pp monad (Trans r)
-    go     (SPP (STuple2 sp SO))       = tagT $ withWitnessT pCRT sp
-    go spp@(SPP (STuple2 sp (SS se'))) = tagT $ do
-      pp'dft <- withWitnessT ppDFT (SPP (STuple2 sp se'))
+    go     (SPP (STuple2 sp SO))      = tagT $ withWitnessT pCRT sp
+    go spp@(SPP (STuple2 sp (SS se))) = tagT $ do
+      pp'dft <- withWitnessT ppDFT (SPP (STuple2 sp se))
       pptwid <- withWitnessT (ppTwidHat False) spp
       pcrt   <- withWitnessT pCRT sp
       return
