@@ -12,7 +12,7 @@
 {-# LANGUAGE ViewPatterns          #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic
+module Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic () -- only instances
   where
 
 import Data.Array.Accelerate                                        as A hiding ( (-) )
