@@ -73,7 +73,7 @@ divGCRT
     => monad (Arr m r -> Arr m r)
 divGCRT =
   let go :: Arr m r -> Arr m r -> Arr m r
-      go g x = Arr $ A.zipWith (*) (unArr x) (unArr g)
+      go x y = Arr $ A.zipWith (*) (unArr x) (unArr y)
   in
   go <$> gInvCRT
 
