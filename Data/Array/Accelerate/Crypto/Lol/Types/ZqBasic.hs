@@ -51,7 +51,7 @@ import Unsafe.Coerce
 -- CRTrans instances
 -- -----------------
 
-instance (ReflectsTI q z, Ring (Exp (ZqBasic q z)), Typeable (ZqBasic q))
+instance (ReflectsTI q z, Ring (Exp (ZqBasic q z)), FromIntegral z Double, Typeable (ZqBasic q))
     => CRTEmbed AT (ZqBasic q z) where
   type CRTExt (ZqBasic q z) = Complex Double
   --
@@ -60,7 +60,7 @@ instance (ReflectsTI q z, Ring (Exp (ZqBasic q z)), Typeable (ZqBasic q))
   fromExt = tag $ reduce' . A.round . A.real
 
 
-instance (ReflectsTI q z, Ring (Exp z), PID (Exp z), ToInteger z, Enumerable (ZqBasic q z), Typeable (ZqBasic q))
+instance (ReflectsTI q z, Ring (Exp z), PID (Exp z), ToInteger z, Enumerable (ZqBasic q z), FromIntegral Int z, Typeable (ZqBasic q))
     => CRTrans Maybe (Exp Int) (Exp (ZqBasic q z)) where
   crtInfo = (,) <$> principalRootOfUnity
                 <*> mhatInv
@@ -162,12 +162,23 @@ instance NPZT.C (Exp z) where
   isZero = error "numeric-prelude error: use Data.Array.Accelerate.Algebra.ZeroTestable.isZero instead"
 
 
--- Standard instances
--- ------------------
+-- Accelerate instances
+-- --------------------
 
 instance (A.Eq z, Typeable (ZqBasic q)) => A.Eq (ZqBasic q z) where
   (unliftZq -> ZqB x) ==* (unliftZq -> ZqB y) = x ==* y
   (unliftZq -> ZqB x) /=* (unliftZq -> ZqB y) = x /=* y
+
+instance (A.FromIntegral a z, Elt z, Typeable (ZqBasic q)) => A.FromIntegral a (ZqBasic q z) where
+  fromIntegral = A.lift . ZqB . A.fromIntegral
+
+-- instance (Additive.C (Exp (ZqBasic q z)), Ring.C (Exp (ZqBasic q z)), Field.C (Exp (ZqBasic q z)), Typeable (ZqBasic q))
+--     => P.Num (Exp (ZqBasic q z)) where
+--   (+)         = (Additive.+)
+--   (-)         = (Additive.-)
+--   (*)         = (Ring.*)
+--   negate      = Additive.negate
+--   fromInteger = Ring.fromInteger
 
 
 -- Utilities

@@ -62,14 +62,14 @@ mulGCRT
     => monad (Arr m r -> Arr m r)
 mulGCRT =
   let go :: Arr m r -> Arr m r -> Arr m r
-      go g x = Arr $ A.zipWith (*) (unArr x) (unArr g)
+      go x y = Arr $ A.zipWith (*) (unArr x) (unArr y)
   in
   go <$> gCRT
 
 -- | Divide by @g_m@ in the CRT basis (when it exists)
 --
 divGCRT
-    :: forall monad m r. (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), Elt r)
+    :: forall monad m r. (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), A.FromIntegral Int r, Elt r)
     => monad (Arr m r -> Arr m r)
 divGCRT =
   let go :: Arr m r -> Arr m r -> Arr m r
@@ -112,17 +112,17 @@ gCRTPrime = do
 -- | The coefficient vector of @g^{-1}@ in the CRT basis (when it exists)
 --
 gInvCRT
-    :: (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), Elt r)
+    :: (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), A.FromIntegral Int r, Elt r)
     => monad (Arr m r)
 gInvCRT = wrapVector gInvCRTM
 
 gInvCRTM
-    :: (Fact m, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: (Fact m, CRTrans monad (Exp Int) (Exp r), A.FromIntegral Int r, Elt r)
     => TaggedT m monad (Matrix r)
 gInvCRTM = fMatrix gInvCRTPPow
 
 gInvCRTPPow
-    :: (PPow pp, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: (PPow pp, CRTrans monad (Exp Int) (Exp r), A.FromIntegral Int r, Elt r)
     => TaggedT pp monad (MatrixC r)
 gInvCRTPPow = ppMatrix gInvCRTPrime
 
@@ -130,36 +130,38 @@ gInvCRTPPow = ppMatrix gInvCRTPrime
 -- cyclotomic ring.
 --
 gInvCRTPrime
-    :: forall monad p r. (Prim p, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: forall monad p r. (Prim p, CRTrans monad (Exp Int) (Exp r), A.FromIntegral Int r, Elt r)
     => TaggedT p monad (MatrixC r)
 gInvCRTPrime = do
   p               <- pureT valuePrime
   (wPow, phatInv) <- crtInfo
   let
-      -- XXX: Below is the implementation copied straight from RepaTensor,
-      --      however this expression is potentially very large (depending on
-      --      'p'), so may be better to implement as a simple 2D reduction
-      --      (which follows).
+      -- TLM: At the moment this is cutoff is dictated more by Accelerate's
+      --      optimisation stage rather than performance considerations ):
+      f | p < 16    = f_seq
+        | otherwise = f_par
+
+      -- Sequential implementation copied straight from RepaTensor. However,
+      -- this expression is potentially very large (depending on 'p'), so for
+      -- large sizes we compute this as a parallel reduction (below).
       --
-      --      Be wary of introducing nested parallelism...
-      --
-      f :: Exp DIM2 -> Exp r
-      f _ | p <= 2 = one
-      f ix         =
+      f_seq :: Exp DIM2 -> Exp r
+      f_seq _ | p <= 2 = one
+      f_seq ix         =
         let Z :. i :. _ = A.unlift ix :: Z :. Exp Int :. Exp Int
         in  phatInv * P.sum [ P.fromIntegral j * wPow ((i+1) * A.constant (p-1-j))
                             | j <- [1..p-1] ]
 
-      -- TLM: need extra constraints in order to use P.fromIntegral here
+      -- Parallel version of the above
       --
-      -- arr :: Acc (Array DIM1 r)
-      -- arr = A.fold (+) zero
-      --     $ A.generate (A.constant (Z :. p-1 :. p-2))
-      --                  (\ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
-      --                          in  P.fromIntegral (j+1) * wPow ((i+1) * (A.constant p - j)))
+      f_par :: Exp DIM2 -> Exp r
+      f_par ix = phatInv * arr A.! A.indexTail ix
 
-      -- f :: Exp DIM2 -> Exp r
-      -- f ix = phatInv * arr A.! A.indexTail ix
+      arr :: Acc (Array DIM1 r)
+      arr = A.fold (+) zero
+          $ A.generate (A.constant (Z :. p-1 :. p-2))
+                       (\ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
+                               in  A.fromIntegral (j+1) * wPow ((i+1) * (A.constant p - j)))
   --
   return $ MC (Z :. p-1 :. 1) f
 

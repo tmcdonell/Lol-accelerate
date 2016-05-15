@@ -1,10 +1,12 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE InstanceSigs        #-}
-{-# LANGUAGE NoImplicitPrelude   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoImplicitPrelude     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate
@@ -56,6 +58,7 @@ import Data.Constraint
 --
 instance Tensor AT where
   type TElt AT r = ( Elt r
+                   , A.FromIntegral Int r
                    , A.Eq r                   -- for entailEqT
                    , ZeroTestable.C (Exp r)   -- for divGPow, divGDec
                    )
@@ -108,4 +111,11 @@ instance Tensor AT where
     where
       AT (Arr xs') = toAT xs
       (ls,rs)      = A.unzip xs'
+
+
+-- Mirroring the behaviour of numeric-prelude.fromIntegral which is driven by
+-- Ring.fromInteger and the product instance defined in LatticePrelude.
+--
+instance (FromIntegral a b, FromIntegral a c, Elt b, Elt c) => FromIntegral a (b,c) where
+  fromIntegral x = A.lift (A.fromIntegral x, A.fromIntegral x)
 

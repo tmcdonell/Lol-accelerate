@@ -24,6 +24,8 @@ import Data.Array.Accelerate.Smart
 import Data.Array.Accelerate.Product
 import Data.Array.Accelerate.Array.Sugar
 
+import qualified Data.Array.Accelerate.Algebra.Absolute             as Absolute
+import qualified Data.Array.Accelerate.Algebra.Algebraic            as Algebraic
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
 import qualified Data.Array.Accelerate.Algebra.Field                as Field
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
@@ -35,6 +37,8 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 import Crypto.Lol.Types.Complex                                     ( Complex(..) )
 import qualified Crypto.Lol.Types.Complex                           as C
 import qualified Number.Complex                                     as NP
+
+import Prelude                                                      as P
 
 
 -- -- | Rounds the real and imaginary components to the nearest integral
@@ -64,6 +68,19 @@ imag = lift1 (C.imag :: Complex (Exp a) -> Exp a)
 --
 fromReal :: (Additive.C (Exp a), Elt a) => Exp a -> Exp (Complex a)
 fromReal = lift . C.fromReal
+
+-- | Non-negative magnitude of a complex number
+--
+magnitude :: (Algebraic.C (Exp a), Elt a) => Exp (Complex a) -> Exp a
+magnitude = Algebraic.sqrt . magnitudeSqr
+
+magnitudeSqr :: (Ring.C (Exp a), Elt a) => Exp (Complex a) -> Exp a
+magnitudeSqr c = (real c Ring.^ 2) Additive.+ (imag c Ring.^ 2)
+
+-- | Scale a complex number by a real number
+--
+scale :: (Ring.C (Exp a), Elt a) => Exp a -> Exp (Complex a) -> Exp (Complex a)
+scale r c = lift $ Complex (r Ring.* real c NP.+: r Ring.* imag c)
 
 
 -- It is really sad that I am defining this again from scratch, rather than
@@ -116,4 +133,24 @@ instance (Ring.C (Exp a), Elt a) => Ring.C (Exp (Complex a)) where
 instance (Field.C (Exp a), Elt a) => Field.C (Exp (Complex a)) where
   (/)             = lift2 ((Field./) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
   fromRational' x = lift (Field.fromRational' x :: Complex (Exp a))
+
+instance (Algebraic.C (Exp a), ZeroTestable.C (Exp a), Elt a) => Absolute.C (Exp (Complex a)) where
+  abs c    = lift $ Complex (magnitude c NP.+: Additive.zero)
+  signum c = ZeroTestable.isZero c
+           ? ( Additive.zero
+             , scale (Field.recip (magnitude c)) c
+             )
+
+-- instance (Absolute.C (Exp a), Additive.C (Exp a), Algebraic.C (Exp a), Ring.C (Exp a), ZeroTestable.C (Exp a), Elt a)
+--     => P.Num (Exp (Complex a)) where
+--   (+)         = (Additive.+)
+--   (-)         = (Additive.-)
+--   (*)         = (Ring.*)
+--   abs         = Absolute.abs
+--   signum      = Absolute.signum
+--   negate      = Additive.negate
+--   fromInteger = Ring.fromInteger
+
+instance (A.FromIntegral a b, Additive.C (Exp b), Elt b) => A.FromIntegral a (Complex b) where
+  fromIntegral = fromReal . A.fromIntegral
 
