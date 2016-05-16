@@ -67,14 +67,10 @@ fGDec = eval $ fTensor $ ppTensor pGDec
 -- | Arbitrary-index division by @g_m@ in the powerful basis. Outputs 'Nothing'
 -- if not evenly divisible by @g_m@.
 --
--- Unfortunately, we have an extra 'IsNum' constraint because the
--- numeric-prelude definition of 'fromIntegral' requires an instance of
--- 'ToIntegrer', which is entirely untenable for Accelerate.
---
 -- WARNING: Not constant time.
 --
 fGInvPow
-    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
+    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), A.FromIntegral Int r, Elt r)
     => Arr m r
     -> Maybe (Arr m r)
 fGInvPow = wrapGInv pGInvPow
@@ -85,7 +81,7 @@ fGInvPow = wrapGInv pGInvPow
 -- WARNING: Not constant time
 --
 fGInvDec
-    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
+    :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), A.FromIntegral Int r, Elt r)
     => Arr m r
     -> Maybe (Arr m r)
 fGInvDec = wrapGInv pGInvDec
@@ -183,7 +179,7 @@ divCheck arr den =
 
 -- Doesn't do division by (odd) p
 --
-pGInvPow :: forall p r. (Prim p, Ring (Exp r), Elt r) => Tagged p (Trans r)
+pGInvPow :: forall p r. (Prim p, Ring (Exp r), A.FromIntegral Int r, Elt r) => Tagged p (Trans r)
 pGInvPow = pWrap $ \p arr ->
   let
       sl   = scanl1_2d (+) arr
@@ -191,18 +187,18 @@ pGInvPow = pWrap $ \p arr ->
 
       f :: Exp DIM2 -> Exp r -> Exp r -> Exp r
       f ix x y  = let i = A.indexHead ix
-                  in  fromIntegral (A.constant p-i-1) * x
-                    + fromIntegral (-i-1)           * y
+                  in  A.fromIntegral (A.constant p-i-1) * x
+                    + A.fromIntegral (-i-1)             * y
   in
   A.izipWith f sl sr
 
 
 -- Doesn't do division by (odd) p
 --
-pGInvDec :: forall p r. (Prim p, Ring (Exp r), Elt r) => Tagged p (Trans r)
+pGInvDec :: forall p r. (Prim p, Ring (Exp r), A.FromIntegral Int r, Elt r) => Tagged p (Trans r)
 pGInvDec = pWrap $ \p arr ->
   let
-      nats = A.generate (A.shape arr) (\ix -> fromIntegral (A.indexHead ix) + one)
+      nats = A.generate (A.shape arr) (\ix -> A.fromIntegral (A.indexHead ix) + one)
       sl   = A.fold (+) zero (A.zipWith (*) arr nats)
       sr   = scanr1_2d (+) arr
 
@@ -210,7 +206,7 @@ pGInvDec = pWrap $ \p arr ->
       f ix x = let Z :. j :. _ = A.unlift ix :: Z :. Exp Int :. Exp Int
                    s           = sl A.! A.index1 j
                in
-               s - fromIntegral (A.constant p) * x
+               s - A.fromIntegral (A.constant p) * x
   in
   A.imap f sr
 
