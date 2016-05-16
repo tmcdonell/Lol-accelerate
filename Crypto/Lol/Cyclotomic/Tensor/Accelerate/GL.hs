@@ -155,12 +155,12 @@ wrapGInv
     => (forall p. Prim p => Tagged p (Trans r))
     -> Arr m r
     -> Maybe (Arr m r)
-wrapGInv gInv =
+wrapGInv gInv arr =
   let
       fGInv = eval $ fTensor $ ppTensor gInv
       rad   = fromIntegral (proxy oddRadicalFact (Proxy :: Proxy m))
   in
-  flip divCheck rad . fGInv
+  fGInv arr `divCheck` rad
 
 divCheck
     :: (IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
@@ -183,7 +183,7 @@ pGInvPow :: forall p r. (Prim p, Ring (Exp r), A.FromIntegral Int r, Elt r) => T
 pGInvPow = pWrap $ \p arr ->
   let
       sl   = scanl1_2d (+) arr
-      sr   = scanr1_2d (+) arr
+      sr   = scanr_2d (+) zero arr
 
       f :: Exp DIM2 -> Exp r -> Exp r -> Exp r
       f ix x y  = let i = A.indexHead ix
@@ -200,7 +200,7 @@ pGInvDec = pWrap $ \p arr ->
   let
       nats = A.generate (A.shape arr) (\ix -> A.fromIntegral (A.indexHead ix) + one)
       sl   = A.fold (+) zero (A.zipWith (*) arr nats)
-      sr   = scanr1_2d (+) arr
+      sr   = scanr_2d (+) zero arr
 
       f :: Exp DIM2 -> Exp r -> Exp r
       f ix x = let Z :. j :. _ = A.unlift ix :: Z :. Exp Int :. Exp Int
@@ -223,11 +223,11 @@ scanl1_2d f arr = A.reshape (A.shape arr) p
     vec         = A.flatten arr
     p           = A.scanl1Seg f vec seg
 
-scanr1_2d :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Array DIM2 a) -> Acc (Array DIM2 a)
-scanr1_2d f arr = A.reshape (A.shape arr) p
+scanr_2d :: Elt a => (Exp a -> Exp a -> Exp a) -> Exp a -> Acc (Array DIM2 a) -> Acc (Array DIM2 a)
+scanr_2d f z arr = A.reshape (A.shape arr) p
   where
     Z :. h :. w = A.unlift (A.shape arr)
     seg         = A.fill (A.index1 h) w
     vec         = A.flatten arr
-    p           = A.scanr1Seg f vec seg
+    p           = A.prescanrSeg f z vec seg
 
