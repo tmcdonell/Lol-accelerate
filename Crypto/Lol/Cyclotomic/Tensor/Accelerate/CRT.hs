@@ -138,7 +138,8 @@ gInvCRTPrime = do
   let
       -- TLM: At the moment this is cutoff is dictated more by Accelerate's
       --      optimisation stage rather than performance considerations ):
-      f | p < 16    = f_seq
+      f | p <= 2    = const one
+        | p < 16    = f_seq     -- TODO: tune me
         | otherwise = f_par
 
       -- Sequential implementation copied straight from RepaTensor. However,
@@ -146,8 +147,7 @@ gInvCRTPrime = do
       -- large sizes we compute this as a parallel reduction (below).
       --
       f_seq :: Exp DIM2 -> Exp r
-      f_seq _ | p <= 2 = one
-      f_seq ix         =
+      f_seq ix =
         let Z :. i :. _ = A.unlift ix :: Z :. Exp Int :. Exp Int
         in  phatInv * P.sum [ P.fromIntegral j * wPow ((i+1) * A.constant (p-1-j))
                             | j <- [1..p-1] ]
@@ -159,9 +159,9 @@ gInvCRTPrime = do
 
       arr :: Acc (Array DIM1 r)
       arr = A.fold (+) zero
-          $ A.generate (A.constant (Z :. p-1 :. p-2))
+          $ A.generate (A.constant (Z :. p-1 :. p-1))
                        (\ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
-                               in  A.fromIntegral (j+1) * wPow ((i+1) * (A.constant p - j)))
+                               in  A.fromIntegral (j+1) * wPow ((i+1) * (A.constant p-2-j)))
   --
   return $ MC (Z :. p-1 :. 1) f
 
