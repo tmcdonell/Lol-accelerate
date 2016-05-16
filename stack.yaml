@@ -7,12 +7,12 @@ packages:
 - '.'
 - location:
     git:    https://github.com/tmcdonell/accelerate.git
-    commit: 1d9436590de8b4303701ae4aac23dbf8142e5390
+    commit: fe57214a45bb583ed1a5096517dc77ed8733dfe2
   extra-dep: true
 
 - location:
     git:    https://github.com/tmcdonell/Lol.git
-    commit: f7afb274842f5a0a208d0eeaab61cb301dacbfcb
+    commit: 7a116372aede6ad312e21516683556e0fbf557ab
   extra-dep: true
   subdirs:
     - 'lol'
