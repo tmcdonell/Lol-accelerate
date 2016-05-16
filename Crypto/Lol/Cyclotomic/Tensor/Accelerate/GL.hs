@@ -140,10 +140,10 @@ pGDec = pWrap $ \_ arr ->
       s = A.fold (+) zero arr
 
       f :: Exp DIM2 -> Exp r
-      f ix = let Z :. y :. x = A.unlift ix
+      f ix = let Z :. j :. i = A.unlift ix
                  u           = arr A.! ix
-                 v           = x A.==* 0 A.? ( s A.! A.index1 y
-                                             , negate (arr A.! A.index2 x (x-1)) )
+                 v           = i A.==* 0 A.? ( s A.! A.index1 j
+                                             , negate (arr A.! A.index2 j (i-1)) )
              in
              u + v
   in
