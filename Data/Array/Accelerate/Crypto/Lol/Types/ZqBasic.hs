@@ -60,7 +60,7 @@ instance (ReflectsTI q z, Ring (Exp (ZqBasic q z)), FromIntegral z Double, Typea
   fromExt = tag $ reduce' . A.round . A.real
 
 
-instance (ReflectsTI q z, Ring (Exp z), PID (Exp z), ToInteger z, Enumerable (ZqBasic q z), FromIntegral Int z, Typeable (ZqBasic q))
+instance (ReflectsTI q z, Ring (Exp z), PID z, PID (Exp z), ToInteger z, Enumerable (ZqBasic q z), FromIntegral Int z, Typeable (ZqBasic q))
     => CRTrans Maybe (Exp Int) (Exp (ZqBasic q z)) where
   crtInfo = (,) <$> principalRootOfUnity
                 <*> mhatInv
@@ -81,28 +81,21 @@ principalRootOfUnity =
       q        = LP.fromIntegral (proxy value (Proxy::Proxy q) :: z)    -- use Integer for intermediates
       mval     = proxy value (Proxy::Proxy m)
       order    = q-1                                                    -- order is Zq^* (assuming q is prime)
-      pfactors = fmap LP.fst (factorise order)                          -- the primes dividing the order of Zq^*
-      exps     = fmap (LP.div order) pfactors                           -- powers we need to check
+      pfactors = LP.fst <$> factorise order                             -- the primes dividing the order of Zq^*
+      exps     = LP.div order <$> pfactors                              -- powers we need to check
       isGen x  = x^order == one && LP.all (\e -> x^e /= one) exps       -- whether an element is a generator of Zq^*
       (mq,mr)  = order `LP.divMod` LP.fromIntegral mval
-      omega    = head (LP.filter isGen values) ^ mq :: ZqBasic q z
+      omega    = head (LP.filter isGen values) ^ mq
   in
   tagT $ if isPrime q && mr == 0
             then Just $ \i -> A.iterate (i `LP.mod` constant mval) (LP.* constant omega) one -- omega ** (i `mod` m) ??
             else Nothing
 
 mhatInv
-    :: forall m q z. ( ReflectsTI q z, Reflects m Int, PID (Exp z)
-                     , A.Num z, A.FromIntegral Int z, Elt z, Typeable (ZqBasic q)
-                     )
+    :: forall m q z. (CRTrans Maybe Int (ZqBasic q z), PID z, Reflects m Int, Elt z, Typeable (ZqBasic q))
     => TaggedT m Maybe (Exp (ZqBasic q z))
 mhatInv =
-  let q    = constant $ proxy value (Proxy::Proxy q)  :: Exp z
-      mval = constant $ proxy value (Proxy::Proxy m)  :: Exp Int
-      mhat = let (d,m) = LP.divMod mval 2 -- this is @valueHat mval@ lifted to Exp
-             in  m ==* 0 ? ( d, mval )
-  in
-  return $ reduce' (A.fromIntegral mhat `modinv` q)
+  constant . LP.snd <$> (crtInfo :: TaggedT m Maybe (CRTInfo Int (ZqBasic q z)))
 
 
 -- ZPP instance
