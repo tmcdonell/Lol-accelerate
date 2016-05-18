@@ -231,13 +231,9 @@ ppTensor f = tagT $ go (sing :: SPrimePower pp)
 
 -- | General matrix-matrix multiplication
 --
--- TODO: Use the FFI to import a fast implementation
---
--- TODO: Check that this matches the definition in RTCommon; They may be using
---       a column-major representation (i.e. have swapped which index represents
---       the rows/columns compared to regular Accelerate).
---
--- NOTE: This is a matrix multiply of @arr * transpose brr@
+-- TODO: Use the FFI to import a fast implementation. Note that this
+-- implementation is different to the standard row-major implementation of
+-- matrix-multiply we usually use.
 --
 mulMat
     :: (Ring (Exp r), Elt r)
@@ -250,9 +246,9 @@ mulMat arr brr
   where
     Z :. _     :. rowsA = A.unlift (A.shape arr) :: Z :. Exp Int :. Exp Int
     Z :. colsB :. _     = A.unlift (A.shape brr) :: Z :. Exp Int :. Exp Int
-    arr'                = A.replicate (A.lift (Z :. All   :. colsB :. All)) arr
-    brr'                = A.replicate (A.lift (Z :. rowsA :. All   :. All)) brr
-    -- trr                 = A.compute (A.transpose brr)
+    arr'                = A.replicate (A.lift (Z :. colsB :. All   :. All)) arr
+    brr'                = A.replicate (A.lift (Z :. All   :. rowsA :. All)) brr
+
 
 -- | Multiplication by a diagonal matrix along the innermost dimension
 --
