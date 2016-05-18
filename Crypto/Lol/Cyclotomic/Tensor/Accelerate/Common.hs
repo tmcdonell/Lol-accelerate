@@ -174,27 +174,33 @@ evalM = fmap (eval . return) . untagT
 -- performing 'I_l' ⊗ 'I_r' transformation.
 --
 expose :: Elt r => Int -> Int -> Acc (Array DIM1 r) -> Acc (Array DIM2 r)
-expose (A.constant -> d) (A.constant -> r) arr = A.backpermute sh f arr
+expose d r arr = res
   where
-    Z :. sz = A.unlift (A.shape arr)
-    sh      = A.index2 (sz `div` d) d
+    res | r == 1    = A.reshape sh arr          -- NOP if arr is manifest
+        | otherwise = A.backpermute sh f arr
+    --
+    d'      = A.constant d
+    r'      = A.constant r
+    sz      = A.unindex1 (A.shape arr)
+    sh      = A.index2 (sz `div` d') d'
     f ix    = let Z :. i :. j = A.unlift ix
-                  imodr       = i `mod` r
+                  imodr       = i `mod` r'
               in
-              A.index1 ((i-imodr)*d + j*r + imodr)
+              A.index1 ((i-imodr)*d' + j*r' + imodr)
 
 -- | Inverse of 'expose'
 --
 unexpose :: Elt r => Int -> Acc (Array DIM2 r) -> Acc (Array DIM1 r)
-unexpose (A.constant -> r) arr = A.backpermute sh f arr
+unexpose 1 arr = A.flatten arr                  -- NOP if arr is manifest
+unexpose r arr = A.backpermute sh f arr
   where
     sh            = A.index1 (sz * d)
     Z :. sz :. d  = A.unlift (A.shape arr)
     f ix          = let i              = A.unindex1 ix
-                        (idivr, imodr) = i     `divMod` r
+                        (idivr, imodr) = i     `divMod` A.constant r
                         (idivrd, j)    = idivr `divMod` d
                     in
-                    A.index2 (r * idivrd + imodr) j
+                    A.index2 (A.constant r * idivrd + imodr) j
 
 -- | For a factored index, tensors up any function defined for (and tagged by)
 -- any prime power
