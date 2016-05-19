@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE NoImplicitPrelude   #-}
@@ -19,13 +20,16 @@
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT (
 
   scalar,
+  embed,
   fCRT, fCRTInv,
   gCRT, gInvCRT,
   mulGCRT, divGCRT,
 
 ) where
 
+-- accelerate (& friends)
 import Data.Array.Accelerate                                        ( Acc, Array, DIM1, DIM2, Exp, Elt, Z(..), (:.)(..) )
+import Data.Array.Accelerate.IO                                     as A
 import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger ()
@@ -33,14 +37,18 @@ import qualified Data.Array.Accelerate.Algebra.Additive             as Additive 
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 
+-- lol/lol-accelerate
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 
 import Crypto.Lol.CRTrans
 import Crypto.Lol.LatticePrelude                                    as P
+import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
+-- other libraries
 import Control.Applicative
 import Data.Singletons.Prelude                                      ( Sing(..), sing)
+import qualified Data.Vector.Storable                               as S
 
 
 -- | Embeds a scalar into the CRT basis (when it exists)
@@ -53,6 +61,18 @@ scalar =
       sh = A.constant (Z :. n)
   in
   return $ Arr . A.fill sh -- . A.constant
+
+
+-- | Embeds an array in the CRT basis of the m`th cyclotomic ring into an array
+-- in the CRT basis of the m'`th cyclotomic ring, when @m | m'@.
+--
+embed :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp Int) (Exp r), Elt r)
+      => monad (Arr m r -> Arr m' r)
+embed = do
+  -- first check existence of the CRT transform in m'
+  _ <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp Int) (Exp r))
+  let indices = proxy baseIndicesCRT (Proxy::Proxy '(m,m'))
+  return $ \(Arr arr) -> Arr $ A.map (arr A.!!) indices
 
 
 -- | Multiply by @g_m@ in the CRT basis (when it exists)
@@ -411,4 +431,21 @@ wrapVector v = do
       f ix = indexM vmat (A.lift (ix :. A.constant 0))
   --
   return . Arr $ A.generate sh f
+
+
+-- Reindexing arrays
+-- -----------------
+--
+-- TODO: Make sure these really are memoised.
+--
+
+-- NOTE:
+--  * conversion from storable to Accelerate vector is O(1)
+--
+baseIndicesCRT
+    :: (m `Divides` m')
+    => Tagged '(m,m') (Acc (Array DIM1 Int))
+baseIndicesCRT = do
+  idxs           <- T.baseIndicesCRT
+  return . A.use $! A.fromVectors (Z :. S.length idxs) idxs
 

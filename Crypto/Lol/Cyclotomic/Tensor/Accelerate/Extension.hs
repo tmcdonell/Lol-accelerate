@@ -19,16 +19,20 @@
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension (
 
   twacePowDec,
+  twaceCRT,
 
 ) where
 
 -- accelerate
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        as A hiding ( (+), (*), div )
 import Data.Array.Accelerate.IO                                     as A
 -- import Data.Array.Accelerate.Array.Data
 
 -- lol/lol-accelerate
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
+
+import Data.Array.Accelerate.Crypto.Lol.CRTrans
 
 import Crypto.Lol.LatticePrelude                                    as P
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
@@ -49,6 +53,33 @@ twacePowDec (Arr arr) =
   in  Arr $ A.map (arr A.!!) indices
 
 
+-- | The "tweaked trace" function in the CRT basis of the m'`th cyclotomic ring
+-- to the m`th cyclotomic ring, when @m | m'@
+--
+twaceCRT
+    :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp Int) (Exp r), FromIntegral Int r, Elt r)
+    => monad (Arr m' r -> Arr m r)
+twaceCRT = do
+  g             <- CRT.gCRT     :: monad (Arr m' r)
+  gInv          <- CRT.gInvCRT  :: monad (Arr m r)
+  embed         <- CRT.embed    :: monad (Arr m r -> Arr m' r)
+  (_, m'hatInv) <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp Int) (Exp r))
+  let
+      vhf         = proxy valueHatFact  (Proxy::Proxy m)
+      indices     = proxy extIndicesCRT (Proxy::Proxy '(m,m'))
+      hatRatioInv = m'hatInv * A.fromIntegral (A.constant vhf)
+      tweak xs ys = A.map (* hatRatioInv)
+                  $ A.zipWith (*) (unArr xs) (unArr ys)
+  --
+  return $ \(Arr arr) ->
+    let
+        xs = A.zipWith (*) arr $ tweak (embed gInv) g
+        ys = A.map (xs A.!!) indices
+        zs = A.fold (+) zero ys
+    in
+    Arr zs
+
+
 -- Reindexing arrays
 -- -----------------
 --
@@ -64,4 +95,16 @@ extIndicesPowDec
 extIndicesPowDec = do
   idxs           <- T.extIndicesPowDec
   return . A.use $! A.fromVectors (Z :. S.length idxs) idxs
+
+extIndicesCRT
+    :: forall m m'. (m `Divides` m')
+    => Tagged '(m,m') (Acc (Array DIM2 Int))
+extIndicesCRT = do
+  let
+      phi  = proxy totientFact (Proxy::Proxy m)
+      phi' = proxy totientFact (Proxy::Proxy m')
+      sh   = Z :. phi :. phi' `div` phi
+  --
+  idxs           <- T.extIndicesCRT
+  return . A.use $! A.fromVectors sh idxs
 

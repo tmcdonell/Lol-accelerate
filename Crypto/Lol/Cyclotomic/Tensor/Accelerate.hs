@@ -94,7 +94,7 @@ instance Tensor AT where
   divGDec       = wrapM GL.fGInvDec
 
   -- A tuple of all the operations relating to the CRT basis, in a single
-  -- 'Maybe' value for safety. Clients should typically class the corresponding
+  -- 'Maybe' value for safety. Clients should typically use the corresponding
   -- top-level functions instead.
   crtFuncs      = (,,,,) <$> ((AT.) <$> CRT.scalar)
                          <*> (wrap  <$> CRT.mulGCRT)
@@ -110,6 +110,13 @@ instance Tensor AT where
   embedPow      = wrap Pow.embed
   embedDec      = wrap Dec.embed
 
+  -- A tuple of all the extension-related operations involving the CRT basis, in
+  -- a single 'Maybe' value for safety. Clients should typically use the
+  -- corresponding top-level functions instead.
+  crtExtFuncs   = (,) <$> (wrap <$> Ext.twaceCRT)
+                      <*> (wrap <$> CRT.embed)
+
+  -- Auxiliary
   fmapT f       = wrap (Arr . A.map f . unArr)
 
   zipWithT f xs ys = AT $ Arr (A.zipWith f xs' ys')

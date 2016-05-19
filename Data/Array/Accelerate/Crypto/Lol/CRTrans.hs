@@ -19,7 +19,8 @@
 module Data.Array.Accelerate.Crypto.Lol.CRTrans (
 
   CRTrans(..),
-  CRTEmbed(..)
+  CRTEmbed(..),
+  CRTInfo
 
 ) where
 
