@@ -11,8 +11,13 @@ packages:
   extra-dep: true
 
 - location:
+    git:    https://github.com/tmcdonell/accelerate-io.git
+    commit: a5e73442fd987243de12bfb0c1ff7a87d701ea94
+  extra-dep: true
+
+- location:
     git:    https://github.com/tmcdonell/Lol.git
-    commit: 7a116372aede6ad312e21516683556e0fbf557ab
+    commit: 68eb274fa0f01852116ec179e62c378485180cb0
   extra-dep: true
   subdirs:
     - 'lol'

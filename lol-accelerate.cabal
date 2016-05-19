@@ -41,6 +41,7 @@ library
   build-depends:
       base                              >= 4.7 && < 4.9
     , accelerate                        >= 0.16
+    , accelerate-io                     >= 0.16
     , arithmoi                          >= 0.4.1.3
     , constraints                       >= 0.8
     , fclabels                          >= 2.0
@@ -64,6 +65,7 @@ library
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+      Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow
