@@ -102,7 +102,7 @@ instance Tensor AT where
                          <*> (wrap  <$> CRT.fCRT)
                          <*> (wrap  <$> CRT.fCRTInv)
 
-  -- The @twace@ linear transformation, which is teh same in both the powerful
+  -- The @twace@ linear transformation, which is the same in both the powerful
   -- and decoding bases.
   twacePowDec   = wrap Ext.twacePowDec
 
@@ -115,6 +115,11 @@ instance Tensor AT where
   -- corresponding top-level functions instead.
   crtExtFuncs   = (,) <$> (wrap <$> Ext.twaceCRT)
                       <*> (wrap <$> CRT.embed)
+
+  -- May a tensor in the powerful/decoding/CRT basis, representing an @O_m'@
+  -- element, to a vector of tensors representing @O_m@ elements in the same
+  -- kind of basis.
+  coeffs        = wrapM Ext.coeffs
 
   -- Auxiliary
   fmapT f       = wrap (Arr . A.map f . unArr)

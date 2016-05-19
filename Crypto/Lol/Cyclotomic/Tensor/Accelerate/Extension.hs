@@ -20,6 +20,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension (
 
   twacePowDec,
   twaceCRT,
+  coeffs,
 
 ) where
 
@@ -38,6 +39,7 @@ import Crypto.Lol.LatticePrelude                                    as P
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries
+import qualified Data.Vector                                        as V
 import qualified Data.Vector.Storable                               as S
 
 
@@ -80,6 +82,18 @@ twaceCRT = do
     Arr zs
 
 
+-- | Map an array in the powerful/decoding basis, representing an @O_m'@
+-- element, to an array of arrays representing @O_m@ elements in the same type
+-- of basis
+--
+coeffs :: forall m m' r. (m `Divides` m', Elt r)
+       =>  Arr m' r
+       -> [Arr m r]
+coeffs (Arr arr) =
+  let indices = proxy extIndicesCoeffs (Proxy::Proxy '(m,m'))
+  in  V.toList $ V.map (Arr . A.map (arr A.!!)) indices
+
+
 -- Reindexing arrays
 -- -----------------
 --
@@ -107,4 +121,11 @@ extIndicesCRT = do
   --
   idxs           <- T.extIndicesCRT
   return . A.use $! A.fromVectors sh idxs
+
+extIndicesCoeffs
+    :: (m `Divides` m')
+    => Tagged '(m,m') (V.Vector (Acc (Vector Int)))
+extIndicesCoeffs = do
+  idxss  <- T.extIndicesCoeffs
+  return $! V.map (\idxs -> A.use $! A.fromVectors (Z :. S.length idxs) idxs) idxss
 
