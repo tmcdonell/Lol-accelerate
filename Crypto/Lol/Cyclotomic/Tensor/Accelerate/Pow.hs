@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
+{-# LANGUAGE NoImplicitPrelude   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE ViewPatterns        #-}
@@ -18,22 +19,25 @@
 
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow (
 
-  scalar, embed
+  scalar,
+  embed,
+  powBasis,
 
 ) where
 
 -- accelerate & friends
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        as A hiding ( (-), div )
 import Data.Array.Accelerate.IO                                     as A
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
 
 -- lol/lol-accelerate
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
-import Crypto.Lol.LatticePrelude
+import Crypto.Lol.LatticePrelude                                    as P
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries
+import Control.Applicative                                          ( (<$>) )
 import qualified Data.Vector.Unboxed                                as U
 
 
@@ -66,6 +70,22 @@ embed (Arr arr) =
         in  j ==* zero ? ( arr A.!! ix , zero )
   in
   Arr $ A.map f indices
+
+-- | The powerful extension basis, w.r.t. the powerful basis. Outputs a list of
+-- arrays in @O_m'@ that are an @O_m@ basis for @O_m'@.
+--
+powBasis
+    :: forall m m' r. (m `Divides` m', Ring (Exp r), Elt r)
+    => Tagged m [Arr m' r]
+powBasis =
+  let
+      (_, phi, phi', _) = proxy T.indexInfo (Proxy::Proxy '(m,m'))
+      idxs              = proxy baseIndicesPow (Proxy::Proxy '(m,m'))
+      ks                = [0 .. phi' `div` phi - 1]
+      f k x             = let (j0,j1) = A.unlift x
+                          in  j0 ==* A.constant k &&* j1 ==* zero ? ( one, zero )
+  in
+  return $ P.map (\k -> Arr $ A.map (f k) idxs) ks
 
 
 -- Reindexing arrays

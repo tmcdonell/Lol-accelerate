@@ -121,6 +121,9 @@ instance Tensor AT where
   -- kind of basis.
   coeffs        = wrapM Ext.coeffs
 
+  -- The powerful extension basis w.r.t. the powerful basis
+  powBasisPow   = (AT <$>) <$> Pow.powBasis
+
   -- Auxiliary
   fmapT f       = wrap (Arr . A.map f . unArr)
 
