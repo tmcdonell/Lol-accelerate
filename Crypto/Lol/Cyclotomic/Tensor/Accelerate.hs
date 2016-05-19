@@ -41,9 +41,10 @@ import Data.Array.Accelerate.Crypto.Lol.CRTrans                     ()
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
+import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec        as Dec
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension  as Ext
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL         as GL
-import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow        as Pow
 
 -- lol
@@ -104,6 +105,10 @@ instance Tensor AT where
   -- The @twace@ linear transformation, which is teh same in both the powerful
   -- and decoding bases.
   twacePowDec   = wrap Ext.twacePowDec
+
+  -- The @embed@ linear transformations, for the powerful and decoding bases
+  embedPow      = wrap Pow.embed
+  embedDec      = wrap Dec.embed
 
   fmapT f       = wrap (Arr . A.map f . unArr)
 

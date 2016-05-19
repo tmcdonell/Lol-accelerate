@@ -44,26 +44,24 @@ twacePowDec
     :: forall m m' r. (m `Divides` m', Elt r)
     => Arr m' r
     -> Arr m  r
-twacePowDec =
+twacePowDec (Arr arr) =
   let indices = proxy extIndicesPowDec (Proxy::Proxy '(m,m'))
-  in  Arr . A.gather indices . unArr
+  in  Arr $ A.map (arr A.!!) indices
 
 
--- Reindexing arrays, for convenience and speed.
+-- Reindexing arrays
+-- -----------------
 --
 -- TODO: Make sure these really are memoised.
 --
 
-
+-- NOTE:
+--  * conversion from storable to Accelerate vector is O(1)
+--
 extIndicesPowDec
     :: (m `Divides` m')
     => Tagged '(m,m') (Acc (Vector Int))
 extIndicesPowDec = do
   idxs           <- T.extIndicesPowDec
-  return . A.use $! intFromStorable idxs
-
--- | /O(1)/ Convert a Storable array of `Int` into an Accelerate array
---
-intFromStorable :: S.Vector Int -> A.Vector Int
-intFromStorable v = A.fromVectors (Z :. S.length v) v
+  return . A.use $! A.fromVectors (Z :. S.length idxs) idxs
 
