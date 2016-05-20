@@ -49,6 +49,7 @@ library
     , MonadRandom                       >= 0.4
     , numeric-prelude                   >= 0.4.2
     , numeric-prelude-accelerate        >= 0.1
+    , reflection                        >= 1.5.1
     , singletons                        >= 1.1.2.1
     , vector                            >= 0.10
 

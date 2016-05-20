@@ -124,6 +124,9 @@ instance Tensor AT where
   -- The powerful extension basis w.r.t. the powerful basis
   powBasisPow   = (AT <$>) <$> Pow.powBasis
 
+  -- A list of tensors representing the mod-@p@ CRT set of the extension
+  crtSetDec     = (AT <$>) <$> Ext.crtSetDec
+
   -- Auxiliary
   fmapT f       = wrap (Arr . A.map f . unArr)
 

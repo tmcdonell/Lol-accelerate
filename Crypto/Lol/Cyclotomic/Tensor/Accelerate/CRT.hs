@@ -206,6 +206,35 @@ fCRTInv = do
   evalM $ (divMhat .*) <$> fTensor ppCRTInv
 
 
+{--
+-- | The "tweaked" CRT^* matrix:
+--
+--   @ CRT^* * diag ( sigma (g_p) ) @
+--
+twCRTs :: (Fact m, CRTrans monad (Exp Int) (Exp r), Elt r)
+       => TaggedT m monad (Matrix r)
+twCRTs = fMatrix twCRTsPPow
+
+-- | The "tweaked" CRT^* matrix for prime powers
+--
+twCRTsPPow
+    :: (PPow pp, CRTrans monad (Exp Int) (Exp r), Elt r)
+    => TaggedT pp monad (MatrixC r)
+twCRTsPPow = do
+  phi         <- pureT totientPPow
+  iToZms      <- pureT indexToZmsPPow
+  jToPow      <- pureT indexToPowPPow
+  (wPow,_)    <- crtInfo
+  (MC _ gCRT) <- gCRTPPow
+  let
+      sh   = Z :. phi :. phi
+      f ix = let Z :. j :. i = A.unlift ix :: Z :. Exp Int :. Exp Int
+             in  wPow (jToPow j * negate (iToZms i)) * gCRT (A.index2 i 0)
+  --
+  return $ MC sh f
+--}
+
+
 -- Operations over Prime Powers
 -- ----------------------------
 
@@ -323,15 +352,6 @@ ppTwidHat inv = do
   return $ trans (pptot, mulDiag diag)
 
 
--- | Base-p digit reversal. Input and output are in @p^e@.
---
-digitRev :: Int -> Int -> Exp Int -> Exp Int
-digitRev p e j
-  | e < 1     = zero
-  | otherwise = let (q,r) = j `divMod` A.constant p
-                in  r * (A.constant (p ^ (e-1))) + digitRev p (e-1) q
-
-
 -- Operations over Prim
 -- --------------------
 
@@ -431,6 +451,62 @@ wrapVector v = do
       f ix = indexM vmat (A.lift (ix :. A.constant 0))
   --
   return . Arr $ A.generate sh f
+
+
+-- Reindexing functions
+-- --------------------
+
+{--
+indexToZmsPPow :: PPow pp => Tagged pp (Exp Int -> Exp Int)
+indexToZmsPPow = indexToZms <$> ppPPow
+
+indexToPowPPow :: PPow pp => Tagged pp (Exp Int -> Exp Int)
+indexToPowPPow = indexToPow <$> ppPPow
+
+-- | For a prime power @p^e@, map a tensor index to the corresponding element
+-- @i@ in @Z_{p^e}^*@.
+--
+indexToZms :: PP -> Exp Int -> Exp Int
+indexToZms (p,_) i =
+  let (q,r) = i `divMod` (A.constant (p-1))
+  in  A.constant p * q + r + 1
+
+-- | For a prime power @p^e@, may a tensor index to the corresponding power @j@
+-- in @[ phi(p^e) ]@, as in the powerful basis
+--
+indexToPow :: PP -> Exp Int -> Exp Int
+indexToPow (p,e) j =
+  let (q,r) = j `divMod` (A.constant (p-1))
+  in  A.constant (p ^ (e-1)) * r + digitRev p (e-1) q
+
+-- | Convert a @Z_m^*@ index to a linear tensor index in @[m]@
+--
+zmsToIndexFact :: Fact m => Tagged m (Exp Int -> Exp Int)
+zmsToIndexFact = zmsToIndex <$> ppsFact
+
+-- | Convert a @Z_m^*@ index to a linear tensor index
+--
+zmsToIndex :: [PP] -> Exp Int -> Exp Int
+zmsToIndex []        _ = 0
+zmsToInedx (pp:rest) i
+  = zmsToIndexPP pp (i `mod` A.constant (valuePP pp))
+  + A.constant (totientPP pp) * zmsToIndex rest i
+
+-- | Inverse of 'indexToZms'
+--
+zmsToIndexPP :: PP -> Exp Int -> Exp Int
+zmsToIndexPP (p,_) i =
+  let (q,r) = i `divMod` A.constant p
+  in  A.constant (p-1)*q + r - 1
+--}
+
+-- | Base-p digit reversal. Input and output are in @p^e@.
+--
+digitRev :: Int -> Int -> Exp Int -> Exp Int
+digitRev p e j
+  | e < 1     = zero
+  | otherwise = let (q,r) = j `divMod` A.constant p
+                in  r * (A.constant (p ^ (e-1))) + digitRev p (e-1) q
 
 
 -- Reindexing arrays

@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
 -- |
@@ -21,13 +22,14 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension (
   twacePowDec,
   twaceCRT,
   coeffs,
+  crtSetDec,
 
 ) where
 
--- accelerate
-import Data.Array.Accelerate                                        as A hiding ( (+), (*), div )
+-- accelerate (& friends)
+import Data.Array.Accelerate                                        ( Acc, Array, DIM1, DIM2, Exp, Elt, FromIntegral, Z(..), (:.)(..) )
 import Data.Array.Accelerate.IO                                     as A
--- import Data.Array.Accelerate.Array.Data
+import qualified Data.Array.Accelerate                              as A
 
 -- lol/lol-accelerate
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
@@ -36,9 +38,13 @@ import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
 import Data.Array.Accelerate.Crypto.Lol.CRTrans
 
 import Crypto.Lol.LatticePrelude                                    as P
+import Crypto.Lol.Types.FiniteField
+import Crypto.Lol.Types.ZmStar
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries
+import Data.Maybe
+import Data.Reflection                                              ( reify )
 import qualified Data.Vector                                        as V
 import qualified Data.Vector.Storable                               as S
 
@@ -94,6 +100,41 @@ coeffs (Arr arr) =
   in  V.toList $ V.map (Arr . A.map (arr A.!!)) indices
 
 
+-- | A list of arrays representing the mod-@p@ CRT set of the extension
+-- @O_m' / O_m@.
+--
+-- NOTE: This is computed sequentially on the host!
+--
+crtSetDec
+    :: forall m m' fp. (m `Divides` m', PrimeField fp, Coprime (PToF (CharOf fp)) m', Elt fp)
+    => Tagged m [Arr m' fp]
+crtSetDec =
+  let
+      p        = proxy valuePrime   (Proxy::Proxy (CharOf fp))
+      phi      = proxy totientFact  (Proxy::Proxy m')
+      d        = proxy (order p)    (Proxy::Proxy m')
+      h        = proxy valueHatFact (Proxy::Proxy m')
+      cosets   = proxy (partitionCosets p) (Proxy::Proxy '(m,m'))
+      zmsToIdx = proxy T.zmsToIndexFact (Proxy::Proxy m')
+      hinv     = recip (fromIntegral h) :: fp
+  in
+  return $ reify d $ \(Proxy :: Proxy d) ->
+    let
+        -- Internally, finite fields are represented as a polynomial whose
+        -- coefficients are stored in a list, which is not representable in Exp.
+        twCRTs :: T.Matrix (GF fp d)
+        twCRTs = fromMaybe (error "Internal error: Accelerate.crtSetDec")
+               $ proxyT T.twCRTs (Proxy::Proxy m')
+
+        trace' :: GF fp d -> fp   -- To avoid recomputing powTraces
+        trace' = trace
+
+        index j i   = T.indexM twCRTs j (zmsToIdx i)
+        f is (Z:.j) = hinv * trace' (P.sum [ index j i | i <- is ])
+    in
+    P.map (Arr . A.use . A.fromFunction (Z:.phi) . f) cosets
+
+
 -- Reindexing arrays
 -- -----------------
 --
@@ -105,7 +146,7 @@ coeffs (Arr arr) =
 --
 extIndicesPowDec
     :: (m `Divides` m')
-    => Tagged '(m,m') (Acc (Vector Int))
+    => Tagged '(m,m') (Acc (Array DIM1 Int))
 extIndicesPowDec = do
   idxs           <- T.extIndicesPowDec
   return . A.use $! A.fromVectors (Z :. S.length idxs) idxs
@@ -124,7 +165,7 @@ extIndicesCRT = do
 
 extIndicesCoeffs
     :: (m `Divides` m')
-    => Tagged '(m,m') (V.Vector (Acc (Vector Int)))
+    => Tagged '(m,m') (V.Vector (Acc (Array DIM1 Int)))
 extIndicesCoeffs = do
   idxss  <- T.extIndicesCoeffs
   return $! V.map (\idxs -> A.use $! A.fromVectors (Z :. S.length idxs) idxs) idxss
