@@ -70,16 +70,16 @@ twaceCRT = do
       vhf         = proxy valueHatFact  (Proxy::Proxy m)
       indices     = proxy extIndicesCRT (Proxy::Proxy '(m,m'))
       hatRatioInv = m'hatInv * A.fromIntegral (A.constant vhf)
-      tweak xs ys = A.map (* hatRatioInv)
-                  $ A.zipWith (*) (unArr xs) (unArr ys)
+      --
+      tweak xs ys                     -- tweak = mhat * g' / (m'hat * g)
+        = A.map (* hatRatioInv)
+        $ A.zipWith (*) (unArr xs) (unArr ys)
   --
-  return $ \(Arr arr) ->
-    let
-        xs = A.zipWith (*) arr $ tweak (embed gInv) g
-        ys = A.map (xs A.!!) indices
-        zs = A.fold (+) zero ys
-    in
-    Arr zs
+  return $ \(Arr arr) ->              -- take true trace after mul-by-tweak
+    Arr . A.fold (+) zero
+        . A.gather indices
+        . A.zipWith (*) arr
+        $ tweak (embed gInv) g
 
 
 -- | Map an array in the powerful/decoding basis, representing an @O_m'@
