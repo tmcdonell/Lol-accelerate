@@ -7,7 +7,6 @@
 {-# LANGUAGE RoleAnnotations     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE ViewPatterns        #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 -- Copyright   : [2016] Trevor L. McDonell
@@ -25,6 +24,9 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common (
   fTensor, ppTensor,
   Trans(Id), trans, dim, (.*), (@*),
   mulMat, mulDiag,
+
+  -- utilities
+  wrap, wrap2,
 
 ) where
 
@@ -84,6 +86,20 @@ instance (Elt r, Random r, Fact m) => Random (Arr m r) where
     runRand $ do
       xs     <- replicateM n (liftRand random)
       return $! Arr (A.use (A.fromList sh xs))
+
+
+wrap :: (Elt a, Elt b)
+     => (Acc (Array DIM1 a) -> Acc (Array DIM1 b))
+     -> Arr m  a
+     -> Arr m' b
+wrap f = Arr . f . unArr
+
+wrap2 :: (Elt a, Elt b, Elt c)
+      => (Acc (Array DIM1 a) -> Acc (Array DIM1 b) -> Acc (Array DIM1 c))
+      -> Arr ma a
+      -> Arr mb b
+      -> Arr mc c
+wrap2 f (Arr xs) (Arr ys) = Arr $ f xs ys
 
 
 -- | 'Tensorable represents a "atomic" transform over the base type 'r'. that

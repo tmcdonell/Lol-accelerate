@@ -1,10 +1,14 @@
-{-# LANGUAGE DataKinds          #-}
-{-# LANGUAGE GADTs              #-}
-{-# LANGUAGE KindSignatures     #-}
-{-# LANGUAGE NoImplicitPrelude  #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies       #-}
-{-# LANGUAGE ViewPatterns       #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoImplicitPrelude     #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE ViewPatterns          #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
 -- Copyright   : [2016] Trevor L. McDonell
@@ -20,14 +24,22 @@
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
   where
 
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        ( Exp, Elt, Z(..), (:.)(..) )
+import qualified Data.Array.Accelerate                              as A
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               hiding ( wrap, wrap2 )
 import Crypto.Lol.Cyclotomic.Tensor.Representation
+import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common     as Arr
 
 import Crypto.Lol.Types.IZipVector
+import Crypto.Lol.Types.FiniteField
 import Crypto.Lol.LatticePrelude                                    as P
+
+import Data.Array.Accelerate.Algebra.Additive                       as Additive
+import Data.Array.Accelerate.Algebra.Module                         as Module
+import Data.Array.Accelerate.Algebra.ZeroTestable                   as ZeroTestable
+import qualified Algebra.ZeroTestable                               as NPZT
 
 -- other libraries
 import Control.Applicative
@@ -63,9 +75,8 @@ type instance TRep AT r = Exp r
 deriving instance Show r => Show (AT m r)
 
 instance (P.Eq r, A.Eq r) => P.Eq (AT m r) where
-  ZV a           == ZV b           = a == b
-  (toAT -> AT a) == (toAT -> AT b) = a == b
-  _              == _              = error "I know words. A have all the best words."
+  ZV a == ZV b = a == b
+  xs   == ys   = unwrap2 (==) xs ys
 
 
 -- Category-theoretic instances
@@ -86,6 +97,34 @@ instance Fact m => Traversable (AT m) where
 
 
 -- Numeric prelude instances
+
+instance (Fact m, Additive (Exp r), Elt r) => Additive.C (AT m r) where
+  zero   = AT $ repl zero
+  (+)    = wrap2 (Arr.wrap2 (A.zipWith (+)))
+  (-)    = wrap2 (Arr.wrap2 (A.zipWith (-)))
+  negate = wrap  (Arr.wrap  (A.map negate))
+
+instance (GFCtx fp d, Fact m, Additive (AT m fp)) => Module.C (GF fp d) (AT m fp) where
+  --
+  r *> (AT at)
+    = let arr = run (unArr at)
+          xs  = A.toList arr
+          m   = r P.*> Coeffs xs
+      in
+      AT . Arr . A.use $ A.fromList (A.arrayShape arr) (unCoeffs m)
+  --
+  r *> (ZV zv)
+    = let xs  = V.toList (unIZipVector zv)
+          m   = r P.*> Coeffs xs
+      in
+      ZV . fromMaybe (error "AT.*>: internal error")
+         $ iZipVector (V.fromList (unCoeffs m))
+
+instance (Fact m, NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) where
+  isZero (ZV v) = NPZT.isZero v
+  isZero (AT a) =
+    let r = A.all ZeroTestable.isZero (unArr a)
+    in  A.indexArray (run r) Z
 
 
 -- Miscellaneous instances
@@ -111,7 +150,7 @@ toAT (ZV z) =
       f (Z :. i) = v V.! i
   in
   -- trace "Lol.Accelerate.toAT" $ -- debugging
-  AT . Arr $ use (A.fromFunction sh f)
+  AT . Arr $ A.use (A.fromFunction sh f)
 
 -- | /O(n)/ Convert internal representation to IZipVector. Note that this
 -- entails executing the Accelerate computation.
@@ -121,21 +160,43 @@ toZV v@ZV{}         = v
 toZV (AT (Arr acc)) =
   let
       arr    = run acc
-      Z :. n = arrayShape arr
-      f i    = arr `indexArray` (Z :. i)
+      Z :. n = A.arrayShape arr
+      f i    = arr `A.indexArray` (Z :. i)
   in
   -- trace "Lol.Accelerate.toZV" $ -- debugging
   ZV $ fromMaybe (error "Accelerate.toZV: internal error")
      $ iZipVector (V.generate n f)
 
-wrap :: (Elt r, Elt r') => (Arr m r -> Arr m' r') -> AT m r -> AT m' r'
-wrap f (toAT -> AT arr) = AT (f arr)
-wrap _ _                = error "You can find work and sort out your life any time..."
+
+wrap :: (Elt a, Elt b) => (Arr ma a -> Arr mb b) -> AT ma a -> AT mb b
+wrap f = AT . unwrap f
+
+wrap2 :: (Elt a, Elt b, Elt c)
+      => (Arr ma a -> Arr mb b -> Arr mc c)
+      -> AT ma a
+      -> AT mb b
+      -> AT mc c
+wrap2 f xs = AT . unwrap2 f xs
+
+unwrap :: Elt a => (Arr m a -> b) -> AT m a -> b
+unwrap f (toAT -> AT arr) = f arr
+unwrap _ _ =
+  error "You can find work and sort out your life any time, the pub closes in five hours."
+
+unwrap2 :: (Elt a, Elt b)
+        => (Arr ma a -> Arr mb b -> c)
+        -> AT ma a
+        -> AT mb b
+        -> c
+unwrap2 f (toAT -> AT xs) (toAT -> AT ys) = f xs ys
+unwrap2 _ _ _ =
+  error "Did you know the word 'recursion' contains the word 'recursion' _in itself_?!!"
 
 wrapM :: (Monad monad, Elt r, Elt r')
       => (Arr m r -> monad (Arr m' r'))
       -> AT m r
       -> monad (AT m' r')
 wrapM f (toAT -> AT arr) = AT <$> f arr
-wrapM _ _                = error "The pub closes in five hours"
+wrapM _ _ =
+  error "Why do you have a miniature block hole on your coffee table?"
 
