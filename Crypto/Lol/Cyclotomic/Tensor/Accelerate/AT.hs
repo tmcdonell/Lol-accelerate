@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -43,6 +44,7 @@ import qualified Algebra.ZeroTestable                               as NPZT
 
 -- other libraries
 import Control.Applicative
+import Control.DeepSeq
 import Control.Monad.Random
 import Data.Foldable
 import Data.Maybe
@@ -128,6 +130,10 @@ instance (Fact m, NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) wh
 
 
 -- Miscellaneous instances
+
+instance NFData r => NFData (AT m r) where
+  rnf (AT !_) = ()      -- lies.
+  rnf (ZV zv) = rnf zv
 
 instance (Elt r, Random r, Fact m) => Random (AT m r) where
   random  = runRand $ AT <$> liftRand random
