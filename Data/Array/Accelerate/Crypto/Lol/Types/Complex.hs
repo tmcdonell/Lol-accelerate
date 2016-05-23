@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoImplicitPrelude     #-}
+{-# LANGUAGE RebindableSyntax      #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
@@ -19,26 +21,36 @@
 module Data.Array.Accelerate.Crypto.Lol.Types.Complex
   where
 
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        ( Lift(..), Unlift(..), (==*), (/=*), (&&*), (||*), lift1, lift2 )
 import Data.Array.Accelerate.Smart
 import Data.Array.Accelerate.Product
 import Data.Array.Accelerate.Array.Sugar
+import qualified Data.Array.Accelerate                              as A
+
+import qualified Data.Array.Accelerate.Number.Complex               as Complex
 
 import qualified Data.Array.Accelerate.Algebra.Absolute             as Absolute
-import qualified Data.Array.Accelerate.Algebra.Algebraic            as Algebraic
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
+import qualified Data.Array.Accelerate.Algebra.Algebraic            as Algebraic
 import qualified Data.Array.Accelerate.Algebra.Field                as Field
+import qualified Data.Array.Accelerate.Algebra.RealTranscendental   as RealTrans
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
--- import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing
--- import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger
-import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental
+import qualified Data.Array.Accelerate.Algebra.Transcendental       as Trans
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
+
+import Data.Array.Accelerate.Algebra.Absolute                       hiding ( C )
+import Data.Array.Accelerate.Algebra.Additive                       hiding ( C )
+import Data.Array.Accelerate.Algebra.Algebraic                      hiding ( C )
+import Data.Array.Accelerate.Algebra.Field                          hiding ( C )
+import Data.Array.Accelerate.Algebra.Ring                           hiding ( C )
+import Data.Array.Accelerate.Algebra.Transcendental                 hiding ( C )
+import Data.Array.Accelerate.Algebra.ZeroTestable                   hiding ( C )
 
 import Crypto.Lol.Types.Complex                                     ( Complex(..) )
 import qualified Crypto.Lol.Types.Complex                           as C
 import qualified Number.Complex                                     as NP
 
-import Prelude                                                      as P
+import Prelude                                                      ( ($), (.), undefined )
 
 
 -- -- | Rounds the real and imaginary components to the nearest integral
@@ -51,7 +63,7 @@ import Prelude                                                      as P
 
 -- | 'cis' @t@ is a complex value with magnitude 1 and phase @t@ (modulo @2*pi@)
 --
-cis :: forall a. (Transcendental.C (Exp a), Elt a) => Exp a -> Exp (Complex a)
+cis :: forall a. (Trans.C (Exp a), Elt a) => Exp a -> Exp (Complex a)
 cis = lift1 (C.cis :: Exp a -> Complex (Exp a))
 
 -- | Real component of a complex number
@@ -72,15 +84,27 @@ fromReal = lift . C.fromReal
 -- | Non-negative magnitude of a complex number
 --
 magnitude :: (Algebraic.C (Exp a), Elt a) => Exp (Complex a) -> Exp a
-magnitude = Algebraic.sqrt . magnitudeSqr
+magnitude = sqrt . magnitudeSqr
 
 magnitudeSqr :: (Ring.C (Exp a), Elt a) => Exp (Complex a) -> Exp a
-magnitudeSqr c = (real c Ring.^ 2) Additive.+ (imag c Ring.^ 2)
+magnitudeSqr c = (real c ^ 2) + (imag c ^ 2)
 
 -- | Scale a complex number by a real number
 --
 scale :: (Ring.C (Exp a), Elt a) => Exp a -> Exp (Complex a) -> Exp (Complex a)
-scale r c = lift $ Complex (r Ring.* real c NP.+: r Ring.* imag c)
+scale r c = lift $ Complex (r * real c NP.+: r * imag c)
+
+
+-- Helpers to convert between the Lol / numeric-prelude representation
+--
+unwrap :: Elt a => Exp (Complex a) -> Exp (Complex.T a)
+unwrap z = real z Complex.+: imag z
+
+wrap :: forall a. Elt a => Exp (Complex.T a) -> Exp (Complex a)
+wrap z = lift $ Complex (unlift z :: Complex.T (Exp a))
+
+liftC :: forall a. Elt a => (Exp (Complex.T a) -> Exp (Complex.T a)) -> Exp (Complex a) -> Exp (Complex a)
+liftC f = wrap . f . unwrap
 
 
 -- It is really sad that I am defining this again from scratch, rather than
@@ -101,55 +125,59 @@ instance cst a => IsProduct cst (Complex a) where
 
 instance (Lift Exp a, Elt (Plain a)) => Lift Exp (Complex a) where
   type Plain (Complex a) = Complex (Plain a)
-  lift (Complex c)       = Exp . Tuple
-                               $ NilTup `SnocTup` lift (NP.real c)
-                                        `SnocTup` lift (NP.imag c)
+  lift (Complex c)       = Exp . Tuple $ NilTup `SnocTup` lift (NP.real c)
+                                                `SnocTup` lift (NP.imag c)
 
 instance Elt a => Unlift Exp (Complex (Exp a)) where
-  unlift e
-    = let x     = Exp $ SuccTupIdx ZeroTupIdx `Prj` e
-          y     = Exp $ ZeroTupIdx `Prj` e
-      in
-      Complex (x NP.+: y)
+  unlift e =
+    let x = Exp $ SuccTupIdx ZeroTupIdx `Prj` e
+        y = Exp $ ZeroTupIdx `Prj` e
+    in
+    Complex (x NP.+: y)
 
 instance A.Eq a => A.Eq (Complex a) where
   x ==* y = real x ==* real y &&* imag x ==* imag y
   x /=* y = real x /=* real y ||* imag x /=* imag y
 
 instance (ZeroTestable.C (Exp a), Elt a) => ZeroTestable.C (Exp (Complex a)) where
-  isZero c = ZeroTestable.isZero (real c) &&* ZeroTestable.isZero (imag c)
+  isZero c = isZero (real c) &&* isZero (imag c)
 
 instance (Additive.C (Exp a), Elt a) => Additive.C (Exp (Complex a)) where
   zero   = lift (Additive.zero :: Complex (Exp a))
-  (+)    = lift2 ((Additive.+) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
-  (-)    = lift2 ((Additive.-) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
-  negate = lift1 (Additive.negate :: Complex (Exp a) -> Complex (Exp a))
+  (+)    = lift2 ((+) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
+  (-)    = lift2 ((-) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
+  negate = lift1 (negate :: Complex (Exp a) -> Complex (Exp a))
 
 instance (Ring.C (Exp a), Elt a) => Ring.C (Exp (Complex a)) where
-  (*)           = lift2 ((Ring.*) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
-  one           = lift (Ring.one :: Complex (Exp a))
-  fromInteger x = lift (Ring.fromInteger x :: Complex (Exp a))
+  (*)           = lift2 ((*) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
+  one           = lift (one :: Complex (Exp a))
+  fromInteger x = lift (fromInteger x :: Complex (Exp a))
 
 instance (Field.C (Exp a), Elt a) => Field.C (Exp (Complex a)) where
-  (/)             = lift2 ((Field./) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
-  fromRational' x = lift (Field.fromRational' x :: Complex (Exp a))
+  (/)             = lift2 ((/) :: Complex (Exp a) -> Complex (Exp a) -> Complex (Exp a))
+  fromRational' x = lift (fromRational' x :: Complex (Exp a))
 
-instance (Algebraic.C (Exp a), ZeroTestable.C (Exp a), Elt a) => Absolute.C (Exp (Complex a)) where
-  abs c    = lift $ Complex (magnitude c NP.+: Additive.zero)
-  signum c = ZeroTestable.isZero c
-           ? ( Additive.zero
-             , scale (Field.recip (magnitude c)) c
-             )
+instance (Absolute.C (Exp a), Algebraic.C (Exp a), ZeroTestable.C (Exp a), Elt a) => Absolute.C (Exp (Complex a)) where
+  abs    = liftC abs
+  signum = liftC signum
 
--- instance (Absolute.C (Exp a), Additive.C (Exp a), Algebraic.C (Exp a), Ring.C (Exp a), ZeroTestable.C (Exp a), Elt a)
---     => P.Num (Exp (Complex a)) where
---   (+)         = (Additive.+)
---   (-)         = (Additive.-)
---   (*)         = (Ring.*)
---   abs         = Absolute.abs
---   signum      = Absolute.signum
---   negate      = Additive.negate
---   fromInteger = Ring.fromInteger
+instance (Absolute.C (Exp a), Algebraic.C (Exp a), Field.C (Exp a), RealTrans.C (Exp a), Trans.C (Exp a), ZeroTestable.C (Exp a), A.Ord a, Elt a)
+    => Algebraic.C (Exp (Complex a)) where
+  sqrt   = liftC sqrt
+  z ^/ r = liftC (^/ r) z
+
+instance (Field.C (Exp a), RealTrans.C (Exp a), Trans.C (Exp a), ZeroTestable.C (Exp a), A.Ord a, Elt a)
+    => Trans.C (Exp (Complex a)) where
+  pi   = wrap pi
+  exp  = liftC exp
+  log  = liftC log
+  sin  = liftC sin
+  cos  = liftC cos
+  sinh = liftC sinh
+  cosh = liftC cosh
+  asin = liftC asin
+  acos = liftC acos
+  atan = liftC atan
 
 instance (A.FromIntegral a b, Additive.C (Exp b), Elt b) => A.FromIntegral a (Complex b) where
   fromIntegral = fromReal . A.fromIntegral
