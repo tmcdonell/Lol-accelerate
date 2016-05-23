@@ -110,24 +110,31 @@ instance (Fact m, Additive (Exp r), Elt r) => Additive.C (AT m r) where
 
 instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF fp d) (AT m fp) where
   --
-  r *> (AT (Arr at))
-    = let
-          d     = proxy value (Proxy::Proxy d)
-          gf    = A.use $ A.fromList (Z :. d) (FF.toList r)
-          --
-          n     = A.length at
-          h     = n `div` A.constant d  -- error if n `mod` d /= 0, so later reshape is fine
-      in
-      AT . Arr $ A.reshape (A.index1 n)
-               $ A.zipWith (*) (A.replicate (A.lift (Z :. h :. All)) gf)  -- All == d
-                               (A.reshape   (A.lift (Z :. h :. d  )) at)
+  r *> (AT (Arr at)) =
+    let
+        d     = proxy value (Proxy::Proxy d)
+        gf    = A.use $ A.fromList (Z :. d) (FF.toList r)
+        --
+        n     = A.length at
+        h     = n `div` A.constant d  -- error if n `mod` d /= 0, so later reshape is fine
+    in
+    -- TLM: Instead of the 1D->2D->1D process we have here, we could instead
+    -- flatten the replicated gf array and perform the zipWith on the input
+    -- array unchanged. This may produce more efficient code, but may also be
+    -- less obvious what is going on?
+    --
+    -- > AT . Arr $ A.zipWith (*) (A.flatten (A.replicate (A.lift (Z :. h :. All)) gf)) at
+    --
+    AT . Arr $ A.reshape (A.index1 n)
+             $ A.zipWith (*) (A.replicate (A.lift (Z :. h :. All)) gf)  -- All == d
+                             (A.reshape   (A.lift (Z :. h :. d  )) at)
   --
-  r *> (ZV zv)
-    = let xs  = V.toList (unIZipVector zv)
-          m   = r P.*> Coeffs xs
-      in
-      ZV . fromMaybe (error "AT.*>: internal error")
-         $ iZipVector (V.fromList (unCoeffs m))
+  r *> (ZV zv) =
+    let xs  = V.toList (unIZipVector zv)
+        m   = r P.*> Coeffs xs
+    in
+    ZV . fromMaybe (error "AT.*>: internal error")
+       $ iZipVector (V.fromList (unCoeffs m))
 
 instance (Fact m, NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) where
   isZero (ZV v) = NPZT.isZero v
