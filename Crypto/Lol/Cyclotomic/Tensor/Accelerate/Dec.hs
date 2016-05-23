@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE RebindableSyntax    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
 -- |
@@ -20,21 +21,29 @@
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec (
 
   embed,
+  tGaussian,
 
 ) where
 
 -- accelerate
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        ( Acc, Array, DIM1, Exp, Elt, FromIntegral, Z(..), (:.)(..), (<*), (?) )
 import Data.Array.Accelerate.IO                                     as A
+import qualified Data.Array.Accelerate                              as A
 
 -- lol/lol-accelerate
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+
+import Crypto.Lol.GaussRandom                                       ( realGaussian )
 import Crypto.Lol.LatticePrelude                                    as P
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries
+import Data.Word
 import Control.Applicative                                          ( (<$>) )
+import Control.Monad
+import Control.Monad.Random
 import qualified Data.Vector.Unboxed                                as U
+-- import qualified Data.Vector.Storable                               as S
 
 
 -- | Embeds an array in the decoding basis of the m`th cyclotomic ring to an
@@ -55,6 +64,66 @@ embed (Arr arr) =
   Arr $ A.map f indices
 
 
+-- | Given @v=r^2@, yields the decoding-basis coefficients of a sample from the
+-- tweaked Gaussian @t_m \cdot D_r@
+--
+-- Note that the random numbers are generated sequentially on the host.
+--
+tGaussian
+    :: forall m v r random. ( Fact m, MonadRandom random, ToRational v, Ord r, Random r, Transcendental r
+                            , Transcendental (Exp r), FromIntegral Int r, Elt r)
+    => v
+    -> random (Arr m r)
+tGaussian v = do
+  let
+      m   = proxy valueFact   (Proxy::Proxy m)
+      n   = proxy totientFact (Proxy::Proxy m)
+      rad = proxy radicalFact (Proxy::Proxy m)
+  --
+  x <- A.fromList (Z :. n) <$> realGaussians (v * fromIntegral (m `div` rad)) n
+  return $ fE (Arr (A.use x))
+
+
+-- | The @E_m@ transformation for an arbitrary @m@.
+--
+fE :: (Fact m, Transcendental (Exp r), FromIntegral Int r, Elt r)
+   => Arr m r
+   -> Arr m r
+fE = eval $ fTensor $ ppTensor pE
+
+-- | The @E_p@ transformation for a prime @p@.
+--
+pE :: forall p r. (Prim p, Transcendental (Exp r), A.FromIntegral Int r, Elt r)
+   => Tagged p (Trans r)
+pE =
+  let
+      pval = proxy valuePrime (Proxy::Proxy p)
+      mat  = A.generate (A.constant (Z :. pval-1 :. pval -1))
+           $ \ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
+                        theta       = 2 * pi * A.fromIntegral (i*(j+1)) / P.fromIntegral pval
+                        q           = j <* A.constant (pval `div` 2)
+                                    ? ( cos theta, sin theta )
+                    in
+                    sqrt 2 * q
+  in
+  tag $ if pval == 2
+           then Id 2
+           else trans (pval-1, mulMat mat)
+
+
+-- | Generate @n@ real, independent gaussians of scaled variance
+-- @svar = true variance @ (2*pi)@
+--
+realGaussians
+    :: (ToRational svar, Ord r, Transcendental r, Random r, MonadRandom random)
+    => svar
+    -> Int
+    -> random [r]
+realGaussians var n
+  | odd n     = P.tail <$> realGaussians var (n+1)
+  | otherwise = uncurry (++) . P.unzip <$> replicateM (n `div` 2) (realGaussian var)
+
+
 -- Reindexing arrays
 -- -----------------
 --
@@ -72,7 +141,7 @@ embed (Arr arr) =
 --
 baseIndicesDec
     :: forall m m'. (m `Divides` m')
-    => Tagged '(m,m') (Acc (Vector (Int,Bool)))
+    => Tagged '(m,m') (Acc (Array DIM1 (Int,Bool)))
 baseIndicesDec = do
   (ix,b) <- U.unzip
           . U.map (maybe (-1,0) (\(i,b) -> (i, fromBool b)))

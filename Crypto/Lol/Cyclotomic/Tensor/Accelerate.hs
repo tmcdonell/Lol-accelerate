@@ -34,6 +34,7 @@ import Data.Array.Accelerate                                        as A
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
+import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental ()
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
 -- lol-accelerate
@@ -108,7 +109,7 @@ instance Tensor AT where
 
   -- Sample from the "tweaked" Gaussian error distribution @t*D@ in the decoding
   -- basis, where @D@ has scaled variance @v@.
-  -- tGaussianDec  =
+  tGaussianDec  = fmap AT . Dec.tGaussian
 
   -- Given the coefficient tensor of @e@ with respect to the decoding basis of
   -- @R@, yield the (scaled) squared norm of @g_m \cdot e@ under the canonical
