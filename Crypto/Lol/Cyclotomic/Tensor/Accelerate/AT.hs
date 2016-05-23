@@ -7,6 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
 {-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE ViewPatterns          #-}
@@ -25,7 +26,7 @@
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
   where
 
-import Data.Array.Accelerate                                        ( Exp, Elt, Z(..), (:.)(..) )
+import Data.Array.Accelerate                                        ( Exp, Elt, Z(..), (:.)(..), All(..) )
 import qualified Data.Array.Accelerate                              as A
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
@@ -33,9 +34,10 @@ import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               hiding ( wra
 import Crypto.Lol.Cyclotomic.Tensor.Representation
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common     as Arr
 
-import Crypto.Lol.Types.IZipVector
-import Crypto.Lol.Types.FiniteField
 import Crypto.Lol.LatticePrelude                                    as P
+import Crypto.Lol.Reflects
+import Crypto.Lol.Types.FiniteField                                 as FF
+import Crypto.Lol.Types.IZipVector
 
 import Data.Array.Accelerate.Algebra.Additive                       as Additive
 import Data.Array.Accelerate.Algebra.Module                         as Module
@@ -106,14 +108,19 @@ instance (Fact m, Additive (Exp r), Elt r) => Additive.C (AT m r) where
   (-)    = wrap2 (Arr.wrap2 (A.zipWith (-)))
   negate = wrap  (Arr.wrap  (A.map negate))
 
-instance (GFCtx fp d, Fact m, Additive (AT m fp)) => Module.C (GF fp d) (AT m fp) where
+instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF fp d) (AT m fp) where
   --
-  r *> (AT at)
-    = let arr = run (unArr at)
-          xs  = A.toList arr
-          m   = r P.*> Coeffs xs
+  r *> (AT (Arr at))
+    = let
+          d     = proxy value (Proxy::Proxy d)
+          gf    = A.use $ A.fromList (Z :. d) (FF.toList r)
+          --
+          n     = A.length at
+          h     = n `div` A.constant d  -- error if n `mod` d /= 0, so later reshape is fine
       in
-      AT . Arr . A.use $ A.fromList (A.arrayShape arr) (unCoeffs m)
+      AT . Arr $ A.reshape (A.index1 n)
+               $ A.zipWith (*) (A.replicate (A.lift (Z :. h :. All)) gf)  -- All == d
+                               (A.reshape   (A.lift (Z :. h :. d  )) at)
   --
   r *> (ZV zv)
     = let xs  = V.toList (unIZipVector zv)

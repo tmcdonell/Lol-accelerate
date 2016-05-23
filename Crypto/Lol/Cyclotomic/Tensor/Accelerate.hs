@@ -33,6 +33,7 @@ import Data.Array.Accelerate                                        as A
 -- numeric-prelude-accelerate
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
+import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
 -- lol-accelerate
@@ -65,6 +66,7 @@ instance Tensor AT where
                    , A.Eq r                   -- entailEqT
                    , ZeroTestable.C (Exp r)   -- entalZTT, divGPow, divGDec
                    , Additive.C (Exp r)       -- entailModuleT
+                   , Ring.C (Exp r)           -- entailModuleT
                    )
 
   entailIndexT  = tag $ Sub Dict
