@@ -116,7 +116,7 @@ instance Tensor AT where
   -- embedding, namely:
   --
   --   @ \hat{m}^{-1} \cdot || \sigma ( g_m \cdot e ) ||^2 @
-  -- gSqNormDec =
+  gSqNormDec    = AT.unwrap Dec.gSqNorm
 
   -- The @twace@ linear transformation, which is the same in both the powerful
   -- and decoding bases.

@@ -21,16 +21,17 @@
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec (
 
   embed,
-  tGaussian,
+  tGaussian, gSqNorm,
 
 ) where
 
 -- accelerate
-import Data.Array.Accelerate                                        ( Acc, Array, DIM1, Exp, Elt, FromIntegral, Z(..), (:.)(..), (<*), (?) )
+import Data.Array.Accelerate                                        ( Acc, Array, DIM1, Exp, Elt, FromIntegral, Z(..), (:.)(..), All(..), (<*), (?) )
 import Data.Array.Accelerate.IO                                     as A
 import qualified Data.Array.Accelerate                              as A
 
 -- lol/lol-accelerate
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 
 import Crypto.Lol.GaussRandom                                       ( realGaussian )
@@ -122,6 +123,47 @@ realGaussians
 realGaussians var n
   | odd n     = P.tail <$> realGaussians var (n+1)
   | otherwise = uncurry (++) . P.unzip <$> replicateM (n `div` 2) (realGaussian var)
+
+
+-- | Given coefficient tensor @e@ with respect to the decoding basis of @R@,
+-- yield the (scaled) squared norm of @g_m \cdot e@ under the canonical
+-- embedding, namely:
+--
+--   @\hat{m}^{-1} \cdot || \sigma ( g_m - \cdot e) || ^ 2@
+--
+gSqNorm :: (Fact m, Ring (Exp r), Elt r) => Arr m r -> r
+gSqNorm e =
+  let e' = fGram e
+      r  = A.foldAll (+) zero
+         $ A.zipWith (*) (unArr e) (unArr e')
+  in
+  run r `A.indexArray` Z
+
+
+-- | Multiply by @\hat{m}@ times the Gram matrix of decoding basis @R^vee@
+--
+fGram :: (Fact m, Ring (Exp r), Elt r) => Arr m r -> Arr m r
+fGram = eval $ fTensor $ ppTensor pGramDec
+
+-- | Multiply by the (scaled) Gram matrix of decoding basis: @I_{p-1} + all-1s@
+--
+pGramDec
+    :: forall p r. (Prim p, Ring (Exp r), Elt r)
+    => Tagged p (Trans r)
+pGramDec =
+  let
+      pval  = proxy valuePrime (Proxy::Proxy p)
+      f arr =
+        let
+            ss  = A.fold (+) zero arr
+            ss' = A.replicate (A.lift (Z :. All :. w)) ss
+            w   = A.indexHead (A.shape arr)
+        in
+        A.zipWith (+) arr ss'
+  in
+  tag $ if pval == 2
+           then Id 1
+           else trans (pval-1, f)
 
 
 -- Reindexing arrays
