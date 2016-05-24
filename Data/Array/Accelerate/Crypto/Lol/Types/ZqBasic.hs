@@ -52,12 +52,12 @@ import Unsafe.Coerce
 -- -----------------
 
 instance (ReflectsTI q z, Ring (Exp (ZqBasic q z)), FromIntegral z Double, Typeable (ZqBasic q))
-    => CRTEmbed AT (ZqBasic q z) where
-  type CRTExt (ZqBasic q z) = Complex Double
+    => CRTEmbed (Exp (ZqBasic q z)) where
+  type CRTExt (Exp (ZqBasic q z)) = Exp (Complex Double)
   --
-  toExt   = tag $ \x -> let ZqB z = unliftZq x
-                        in  A.fromReal (A.fromIntegral z)
-  fromExt = tag $ reduce' . A.round . A.real
+  toExt x = let ZqB z = unliftZq x
+            in  A.fromReal (A.fromIntegral z)
+  fromExt = reduce' . A.round . A.real
 
 
 instance (ReflectsTI q z, Ring (Exp z), PID z, PID (Exp z), ToInteger z, Enumerable (ZqBasic q z), FromIntegral Int z, Typeable (ZqBasic q))

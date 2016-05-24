@@ -5,6 +5,7 @@
 {-# LANGUAGE PolyKinds             #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE UndecidableInstances  #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- |
 -- Module      : Data.Array.Accelerate.Crypto.Lol.CRTrans
@@ -30,8 +31,6 @@ import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental ()
 
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
-
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
 
 import Crypto.Lol.CRTrans
 import Crypto.Lol.LatticePrelude                                    as LP
@@ -89,41 +88,43 @@ instance CRTrans Maybe (Exp Int) (Exp Int64)  where crtInfo = tagT Nothing
 -- --------
 
 -- Instance for product rings
-instance (CRTEmbed AT a, CRTEmbed AT b, Elt a, Elt b, Elt (CRTExt a), Elt (CRTExt b))
-    => CRTEmbed AT (a,b) where
-  type CRTExt (a,b) = (CRTExt a, CRTExt b)
+instance ( CRTEmbed (Exp a), Elt a, Elt (CRTExt a), A.Lift Exp (CRTExt (Exp a)), CRTExt (Exp a) ~ Exp (CRTExt a)
+         , CRTEmbed (Exp b), Elt b, Elt (CRTExt b), A.Lift Exp (CRTExt (Exp b)), CRTExt (Exp b) ~ Exp (CRTExt b)
+         )
+    => CRTEmbed (Exp (a,b)) where
+  type CRTExt (Exp (a,b)) = Exp (CRTExt a, CRTExt b)
   --
-  toExt   = tag $ \t -> let x = proxy toExt (Proxy::Proxy (AT m a)) (A.fst t)
-                            y = proxy toExt (Proxy::Proxy (AT m b)) (A.snd t)
-                        in
-                        A.lift (x,y)
+  toExt t = let x = toExt (A.fst t) :: CRTExt (Exp a)
+                y = toExt (A.snd t) :: CRTExt (Exp b)
+            in
+            A.lift (x,y)
   --
-  fromExt = tag $ \t -> let x = proxy fromExt (Proxy::Proxy (AT m a)) (A.fst t)
-                            y = proxy fromExt (Proxy::Proxy (AT m b)) (A.snd t)
-                        in
-                        A.lift (x,y)
+  fromExt t = let x = fromExt (A.fst t) :: Exp a
+                  y = fromExt (A.snd t) :: Exp b
+              in
+              A.lift (x,y)
 
 -- Trivial instance for complex numbers
-instance (Transcendental (Exp a), Elt a) => CRTEmbed AT (Complex a) where
-  type CRTExt (Complex a) = Complex a
-  toExt   = tag id
-  fromExt = tag id
+instance (Transcendental (Exp a), Elt a) => CRTEmbed (Exp (Complex a)) where
+  type CRTExt (Exp (Complex a)) = Exp (Complex a)
+  toExt   = id
+  fromExt = id
 
 -- Instances for real and integral types embed into Complex
-instance CRTEmbed AT Int where
-  type CRTExt Int = Complex Double
-  toExt   = tag $ A.fromReal . A.fromIntegral
-  fromExt = tag $ A.round . A.real
+instance CRTEmbed (Exp Int) where
+  type CRTExt (Exp Int) = Exp (Complex Double)
+  toExt   = A.fromReal . A.fromIntegral
+  fromExt = A.round . A.real
 
-instance CRTEmbed AT Int64 where
-  type CRTExt Int64 = Complex Double
-  toExt   = tag $ A.fromReal . A.fromIntegral
-  fromExt = tag $ A.round . A.real
+instance CRTEmbed (Exp Int64) where
+  type CRTExt (Exp Int64) = Exp (Complex Double)
+  toExt   = A.fromReal . A.fromIntegral
+  fromExt = A.round . A.real
 
-instance CRTEmbed AT Double where
-  type CRTExt Double = Complex Double
-  toExt   = tag A.fromReal
-  fromExt = tag A.real
+instance CRTEmbed (Exp Double) where
+  type CRTExt (Exp Double) = Exp (Complex Double)
+  toExt   = A.fromReal
+  fromExt = A.real
 
 -- Arbitrary-precision computations are not supported in Accelerate at this time
 -- instance CRTEmbed AT Integer
