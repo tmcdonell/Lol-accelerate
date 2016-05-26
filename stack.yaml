@@ -22,6 +22,7 @@ packages:
   subdirs:
     - 'lol'
     - 'lol-test'
+    - 'lol-bench'
 
 - location:
     git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
@@ -71,6 +72,9 @@ flags:
     llvm-gpu: false
 
   lol-test:
+    accelerate: true
+
+  lol-bench:
     accelerate: true
 
 # Extra package databases containing global packages
