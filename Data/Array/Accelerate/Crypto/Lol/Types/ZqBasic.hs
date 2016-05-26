@@ -15,7 +15,7 @@
 module Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic () -- only instances
   where
 
-import Data.Array.Accelerate                                        as A hiding ( (-) )
+import Data.Array.Accelerate                                        as A hiding ( (-), (*) )
 import Data.Array.Accelerate.Array.Sugar                            as A
 import Data.Array.Accelerate.Smart                                  as A
 import Data.Array.Accelerate.Type                                   as A
@@ -109,6 +109,17 @@ instance ( PPow pp, zq ~ ZqBasic pp z, PrimeField (ZpOf zq), Ring zq, Ring (ZpOf
   modulusZPP = retag (ppPPow :: Tagged pp PP)
   liftZp     = tag unsafeCoerce -- Data.Coerce.coerce didn't work, so use a bigger hammer...
 
+-- Lift/Reduce instances
+-- ---------------------
+
+type instance LiftOf (Exp (ZqBasic p z)) = Exp z
+
+instance (ReflectsTI q z, Ring (Exp z), Typeable (ZqBasic q)) => Lift' (Exp (ZqBasic q z)) where
+  lift = decode'
+
+instance (ReflectsTI q z, Additive (Exp z), Typeable (ZqBasic q)) => Reduce (Exp z) (Exp (ZqBasic q z)) where
+  reduce = reduce'
+
 
 -- Numeric prelude instances
 -- -------------------------
@@ -186,6 +197,18 @@ reduce'
 reduce' x = A.lift (ZqB z)
   where
     z = x `A.mod` constant (proxy value (Proxy::Proxy q))
+
+-- puts the value in the range [-q/2, q/2]
+--
+decode'
+    :: forall q z. (ReflectsTI q z, Ring (Exp z), Typeable (ZqBasic q))
+    => Exp (ZqBasic q z)
+    -> Exp z
+decode' x =
+  let qval  = proxy value (Proxy::Proxy q)
+      ZqB z = unliftZq x
+  in
+  2 * z <* constant qval ? ( z, z - constant qval )
 
 
 -- | Inverse of @a@ modulo @q@, in range @[0..q-1]@.
