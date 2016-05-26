@@ -162,7 +162,7 @@ instance (Field (Exp (ZqBasic q z)), Typeable (ZqBasic q)) => IntegralDomain.C (
 instance (ZeroTestable.C (Exp z), Elt z, Typeable (ZqBasic q)) => ZeroTestable.C (Exp (ZqBasic q z)) where
   isZero (unliftZq -> ZqB z) = ZeroTestable.isZero z
 
-instance NPZT.C (Exp z) where
+instance NPZT.C (Exp (ZqBasic q z)) where
   isZero = error "numeric-prelude error: use Data.Array.Accelerate.Algebra.ZeroTestable.isZero instead"
 
 
