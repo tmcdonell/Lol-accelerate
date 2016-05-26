@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
 {-# LANGUAGE PolyKinds             #-}
@@ -30,8 +29,6 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
 
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
-
 import Crypto.Lol.CRTrans
 import Crypto.Lol.LatticePrelude                                    as LP hiding ( modinv )
 import Crypto.Lol.Reflects
@@ -45,7 +42,6 @@ import Math.NumberTheory.Primes                                     ( factorise,
 
 import Control.Applicative                                          ( (<$>), (<*>) )
 import Data.Typeable
-import Unsafe.Coerce
 
 
 -- CRTrans instances
@@ -101,16 +97,23 @@ mhatInv =
 -- ZPP instance
 -- ------------
 
-instance ( PPow pp, zq ~ ZqBasic pp z, PrimeField (ZpOf zq), Ring zq, Ring (ZpOf zq), ToInteger z
-         , Ring (Exp z), A.Integral z, A.IsIntegral z, Typeable pp)
-    => ZPP AT (ZqBasic (pp :: PrimePower) z) where
-  type ZpOf (ZqBasic pp z) = ZqBasic (PrimePP pp) z
+type instance CharOf (Exp (ZqBasic q z)) = q
+
+instance ( PPow pp, zq ~ Exp (ZqBasic pp z), PrimeField (ZpOf zq)
+         , Ring zq, Ring (ZpOf zq)
+         , Elt z, Typeable pp , Typeable (ZqBasic (PrimePP pp))
+         )
+    => ZPP (Exp (ZqBasic (pp :: PrimePower) z)) where
+  --
+  type ZpOf (Exp (ZqBasic pp z)) = Exp (ZqBasic (PrimePP pp) z)
   --
   modulusZPP = retag (ppPPow :: Tagged pp PP)
-  liftZp     = tag unsafeCoerce -- Data.Coerce.coerce didn't work, so use a bigger hammer...
+  liftZp x   = let ZqB z = unliftZq x
+               in  A.lift (ZqB z)
 
--- Lift/Reduce instances
--- ---------------------
+
+-- Lattice prelude instances
+-- -------------------------
 
 type instance LiftOf (Exp (ZqBasic p z)) = Exp z
 
@@ -119,6 +122,9 @@ instance (ReflectsTI q z, Ring (Exp z), Typeable (ZqBasic q)) => Lift' (Exp (ZqB
 
 instance (ReflectsTI q z, Additive (Exp z), Typeable (ZqBasic q)) => Reduce (Exp z) (Exp (ZqBasic q z)) where
   reduce = reduce'
+
+instance (ReflectsTI q z, ToInteger z, Enum z, Typeable (ZqBasic q), Elt z) => Enumerable (Exp (ZqBasic q z)) where
+  values = LP.map A.constant values
 
 
 -- Numeric prelude instances
