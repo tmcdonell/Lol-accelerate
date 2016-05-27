@@ -153,9 +153,19 @@ instance Tensor AT where
       (ls,rs)      = A.unzip xs'
 
 
+-- missing instances
+-- -----------------
+
 -- Mirroring the behaviour of numeric-prelude.fromIntegral which is driven by
 -- Ring.fromInteger and the product instance defined in LatticePrelude.
 --
 instance (FromIntegral a b, FromIntegral a c, Elt b, Elt c) => FromIntegral a (b,c) where
   fromIntegral x = A.lift (A.fromIntegral x, A.fromIntegral x)
+
+instance (Reduce a (Exp b), Reduce a (Exp c), Elt b, Elt c) => Reduce a (Exp (b,c)) where
+  reduce x =
+    let b = reduce x :: Exp b
+        c = reduce x :: Exp c
+    in
+    A.lift (b,c)
 
