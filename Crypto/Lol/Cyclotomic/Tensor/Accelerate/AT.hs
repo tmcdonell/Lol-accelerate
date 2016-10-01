@@ -31,10 +31,10 @@ import qualified Data.Array.Accelerate                              as A
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               hiding ( wrap, wrap2 )
-import Crypto.Lol.Cyclotomic.Tensor.Representation
+--import Crypto.Lol.Cyclotomic.Tensor.Representation
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common     as Arr
 
-import Crypto.Lol.LatticePrelude                                    as P
+import Crypto.Lol.Prelude                                    as P
 import Crypto.Lol.Reflects
 import Crypto.Lol.Types.FiniteField                                 as FF
 import Crypto.Lol.Types.IZipVector
@@ -62,8 +62,7 @@ data AT (m :: Factored) r where
   AT :: Elt r => Arr m r -> AT m r
   ZV :: IZipVector m r -> AT m r
 
-type instance TRep AT r = Exp r
-
+--type instance TRep AT r = Exp r
 
 -- Extra instances required to support implementation of 'Tensor' backed by
 -- Accelerate.
@@ -136,7 +135,7 @@ instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF
     ZV . fromMaybe (error "AT.*>: internal error")
        $ iZipVector (V.fromList (unCoeffs m))
 
-instance (Fact m, NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) where
+instance (NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) where
   isZero (ZV v) = NPZT.isZero v
   isZero (AT a) =
     let r = A.all ZeroTestable.isZero (unArr a)

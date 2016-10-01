@@ -42,7 +42,7 @@ import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 
 import Crypto.Lol.CRTrans
-import Crypto.Lol.LatticePrelude                                    as P
+import Crypto.Lol.Prelude                                    as P hiding (Matrix)
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries
@@ -57,7 +57,7 @@ scalar
     :: forall monad m r. (Fact m, Elt r, Monad monad)
     => monad (Exp r -> Arr m r)
 scalar =
-  let n  = totientPPs (proxy ppsFact (Proxy :: Proxy m))
+  let n  = proxy totientFact (Proxy :: Proxy m)
       sh = A.constant (Z :. n)
   in
   return $ Arr . A.fill sh -- . A.constant
@@ -66,11 +66,11 @@ scalar =
 -- | Embeds an array in the CRT basis of the m`th cyclotomic ring into an array
 -- in the CRT basis of the m'`th cyclotomic ring, when @m | m'@.
 --
-embed :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp Int) (Exp r), Elt r)
+embed :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp r), Elt r)
       => monad (Arr m r -> Arr m' r)
 embed = do
   -- first check existence of the CRT transform in m'
-  _ <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp Int) (Exp r))
+  _ <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp r))
   let indices = proxy baseIndicesCRT (Proxy::Proxy '(m,m'))
   return $ \(Arr arr) -> Arr $ A.map (arr A.!!) indices
 
@@ -78,7 +78,7 @@ embed = do
 -- | Multiply by @g_m@ in the CRT basis (when it exists)
 --
 mulGCRT
-    :: forall monad m r. (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), Elt r)
+    :: forall monad m r. (Fact m, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => monad (Arr m r -> Arr m r)
 mulGCRT =
   let go :: Arr m r -> Arr m r -> Arr m r
@@ -89,7 +89,7 @@ mulGCRT =
 -- | Divide by @g_m@ in the CRT basis (when it exists)
 --
 divGCRT
-    :: forall monad m r. (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), A.FromIntegral Int r, Elt r)
+    :: forall monad m r. (Fact m, CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int, A.FromIntegral Int r, Elt r)
     => monad (Arr m r -> Arr m r)
 divGCRT =
   let go :: Arr m r -> Arr m r -> Arr m r
@@ -100,17 +100,17 @@ divGCRT =
 
 -- | The coefficient vector of @g@ in the CRT basis (when it exists)
 --
-gCRT :: (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), Elt r)
+gCRT :: (Fact m, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
      => monad (Arr m r)
 gCRT = wrapVector gCRTM
 
 gCRTM
-    :: (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), Elt r)
+    :: (Fact m, CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int)
     => TaggedT m monad (Matrix r)
 gCRTM = fMatrix gCRTPPow
 
 gCRTPPow
-    :: (PPow pp, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), Elt r)
+    :: (PPow pp, CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int)
     => TaggedT pp monad (MatrixC r)
 gCRTPPow = ppMatrix gCRTPrime
 
@@ -118,7 +118,7 @@ gCRTPPow = ppMatrix gCRTPrime
 -- cyclotomic ring.
 --
 gCRTPrime
-    :: forall monad p r. (Prim p, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), Elt r)
+    :: forall monad p r. (Prime p, CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int)
     => TaggedT p monad (MatrixC r)
 gCRTPrime = do
   p         <- pureT valuePrime
@@ -132,17 +132,17 @@ gCRTPrime = do
 -- | The coefficient vector of @g^{-1}@ in the CRT basis (when it exists)
 --
 gInvCRT
-    :: (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), A.FromIntegral Int r, Elt r)
+    :: (Fact m, CRTrans monad (Exp r), A.FromIntegral Int r, Elt r, CRTIndex (Exp r) ~ Exp Int)
     => monad (Arr m r)
 gInvCRT = wrapVector gInvCRTM
 
 gInvCRTM
-    :: (Fact m, CRTrans monad (Exp Int) (Exp r), A.FromIntegral Int r, Elt r)
+    :: (Fact m, CRTrans monad (Exp r), A.FromIntegral Int r, Elt r, CRTIndex (Exp r) ~ Exp Int)
     => TaggedT m monad (Matrix r)
 gInvCRTM = fMatrix gInvCRTPPow
 
 gInvCRTPPow
-    :: (PPow pp, CRTrans monad (Exp Int) (Exp r), A.FromIntegral Int r, Elt r)
+    :: (PPow pp, CRTrans monad (Exp r), A.FromIntegral Int r, Elt r, CRTIndex (Exp r) ~ Exp Int)
     => TaggedT pp monad (MatrixC r)
 gInvCRTPPow = ppMatrix gInvCRTPrime
 
@@ -150,7 +150,7 @@ gInvCRTPPow = ppMatrix gInvCRTPrime
 -- cyclotomic ring.
 --
 gInvCRTPrime
-    :: forall monad p r. (Prim p, CRTrans monad (Exp Int) (Exp r), A.FromIntegral Int r, Elt r)
+    :: forall monad p r . (Prime p, CRTrans monad (Exp r), A.FromIntegral Int r, Elt r, CRTIndex (Exp r) ~ Exp Int)
     => TaggedT p monad (MatrixC r)
 gInvCRTPrime = do
   p               <- pureT valuePrime
@@ -188,17 +188,17 @@ gInvCRTPrime = do
 
 -- | The Chinese Remainder Theorem exists iff CRT exists for all prime powers
 --
-fCRT :: (Fact m, CRTrans monad (Exp Int) (Exp r), Elt r) => monad (Arr m r -> Arr m r)
+fCRT :: (Fact m, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int) => monad (Arr m r -> Arr m r)
 fCRT = evalM (fTensor ppCRT)
 
 -- | The inverse Chinese Remainder theorem. Exists iff CRT exists for all prime
 -- powers. Divides by m̂ after doing crtInv.
 --
 fCRTInv
-    :: forall monad m r. (Fact m, CRTrans monad (Exp Int) (Exp r), Ring (Exp r), Elt r)
+    :: forall monad m r. (Fact m, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => monad (Arr m r -> Arr m r)
 fCRTInv = do
-  (_, mhatInv) <- proxyT crtInfo (Proxy :: Proxy m) :: monad (CRTInfo (Exp Int) (Exp r))
+  (_, mhatInv) <- proxyT crtInfo (Proxy :: Proxy m) :: monad (CRTInfo (Exp r))
   let
       totm    = proxy totientFact (Proxy :: Proxy m)
       divMhat = trans (totm, A.map (* mhatInv))
@@ -206,19 +206,19 @@ fCRTInv = do
   evalM $ (divMhat .*) <$> fTensor ppCRTInv
 
 
-{--
+{-
 -- | The "tweaked" CRT^* matrix:
 --
 --   @ CRT^* * diag ( sigma (g_p) ) @
 --
-twCRTs :: (Fact m, CRTrans monad (Exp Int) (Exp r), Elt r)
+twCRTs :: (Fact m, CRTrans monad (Exp r), Elt r)
        => TaggedT m monad (Matrix r)
 twCRTs = fMatrix twCRTsPPow
 
 -- | The "tweaked" CRT^* matrix for prime powers
 --
 twCRTsPPow
-    :: (PPow pp, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: (PPow pp, CRTrans monad (Exp r), Elt r)
     => TaggedT pp monad (MatrixC r)
 twCRTsPPow = do
   phi         <- pureT totientPPow
@@ -232,14 +232,14 @@ twCRTsPPow = do
              in  wPow (jToPow j * negate (iToZms i)) * gCRT (A.index2 i 0)
   --
   return $ MC sh f
---}
+-}
 
 
 -- Operations over Prime Powers
 -- ----------------------------
 
 ppDFT
-    :: forall monad pp r. (PPow pp, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: forall monad pp r. (PPow pp, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => TaggedT pp monad (Trans r)
 ppDFT = go (sing :: SPrimePower pp)
   where
@@ -256,7 +256,7 @@ ppDFT = go (sing :: SPrimePower pp)
 
 
 ppCRT
-    :: forall monad pp r. (PPow pp, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: forall monad pp r. (PPow pp, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => TaggedT pp monad (Trans r)
 ppCRT = go (sing :: SPrimePower pp)
   where
@@ -274,7 +274,7 @@ ppCRT = go (sing :: SPrimePower pp)
 
 
 ppDFTInv
-    :: forall pp monad r. (PPow pp, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: forall pp monad r. (PPow pp, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => TaggedT pp monad (Trans r)
 ppDFTInv = go (sing :: SPrimePower pp)
   where
@@ -291,7 +291,7 @@ ppDFTInv = go (sing :: SPrimePower pp)
 
 
 ppCRTInv
-    :: forall monad pp r. (PPow pp, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: forall monad pp r. (PPow pp, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => TaggedT pp monad (Trans r)
 ppCRTInv = go (sing :: SPrimePower pp)
   where
@@ -310,7 +310,7 @@ ppCRTInv = go (sing :: SPrimePower pp)
 -- Twiddle factors for DFT_pp and CRT_pp representations
 --
 ppTwid
-    :: forall monad pp r. (PPow pp, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: forall monad pp r. (PPow pp, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => Bool
     -> TaggedT pp monad (Trans r)
 ppTwid inv = do
@@ -331,7 +331,7 @@ ppTwid inv = do
   return $ trans (ppval, mulDiag diag)
 
 ppTwidHat
-    :: forall monad pp r. (PPow pp, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: forall monad pp r. (PPow pp, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => Bool
     -> TaggedT pp monad (Trans r)
 ppTwidHat inv = do
@@ -352,10 +352,10 @@ ppTwidHat inv = do
   return $ trans (pptot, mulDiag diag)
 
 
--- Operations over Prim
+-- Operations over Prime
 -- --------------------
 
-pDFT :: forall monad p r. (Prim p, CRTrans monad (Exp Int) (Exp r), Elt r)
+pDFT :: forall monad p r. (Prime p, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
      => TaggedT p monad (Trans r)
 pDFT = do
   (omegaPPow, _) <- crtInfo
@@ -369,7 +369,7 @@ pDFT = do
              then butterfly
              else trans (pval, mulMat mat)
 
-pCRT :: forall monad p r. (Prim p, CRTrans monad (Exp Int) (Exp r), Elt r)
+pCRT :: forall monad p r. (Prime p, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
      => TaggedT p monad (Trans r)
 pCRT = do
   (omegaPPow, _) <- crtInfo
@@ -384,7 +384,7 @@ pCRT = do
               else trans (pval-1, mulMat mat)
 
 pDFTInv
-    :: forall monad p r. (Prim p, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: forall monad p r. (Prime p, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => TaggedT p monad (Trans r)
 pDFTInv = do
   (omegaPPow, _) <- crtInfo
@@ -400,7 +400,7 @@ pDFTInv = do
 
 -- pCRT * pCRTInv = \hat{p}*I, for all prime p
 pCRTInv
-    :: forall monad p r. (Prim p, CRTrans monad (Exp Int) (Exp r), Elt r)
+    :: forall monad p r. (Prime p, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
     => TaggedT p monad (Trans r)
 pCRTInv = do
   (omegaPPow, _) <- crtInfo
@@ -456,7 +456,7 @@ wrapVector v = do
 -- Reindexing functions
 -- --------------------
 
-{--
+{-
 indexToZmsPPow :: PPow pp => Tagged pp (Exp Int -> Exp Int)
 indexToZmsPPow = indexToZms <$> ppPPow
 
@@ -498,7 +498,7 @@ zmsToIndexPP :: PP -> Exp Int -> Exp Int
 zmsToIndexPP (p,_) i =
   let (q,r) = i `divMod` A.constant p
   in  A.constant (p-1)*q + r - 1
---}
+-}
 
 -- | Base-p digit reversal. Input and output are in @p^e@.
 --

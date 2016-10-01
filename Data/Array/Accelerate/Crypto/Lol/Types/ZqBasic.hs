@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-orphans  #-}
 
 module Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic () -- only instances
   where
@@ -30,7 +30,7 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
 
 import Crypto.Lol.CRTrans
-import Crypto.Lol.LatticePrelude                                    as LP hiding ( modinv )
+import Crypto.Lol.Prelude                                    as LP hiding ( modinv, FromIntegral )
 import Crypto.Lol.Reflects
 import Crypto.Lol.Types.FiniteField
 import Crypto.Lol.Types.ZPP
@@ -56,8 +56,10 @@ instance (ReflectsTI q z, Ring (Exp (ZqBasic q z)), FromIntegral z Double, Typea
   fromExt = reduce' . A.round . A.real
 
 
-instance (ReflectsTI q z, Ring (Exp z), PID z, PID (Exp z), ToInteger z, Enumerable (ZqBasic q z), FromIntegral Int z, Typeable (ZqBasic q))
-    => CRTrans Maybe (Exp Int) (Exp (ZqBasic q z)) where
+instance (ReflectsTI q z, Ring (Exp z), PID z, ToInteger z,
+          Enumerable (ZqBasic q z), Typeable (ZqBasic q))
+    => CRTrans Maybe (Exp (ZqBasic q z)) where
+  type CRTIndex (Exp (ZqBasic q z)) = Exp Int
   crtInfo = (,) <$> principalRootOfUnity
                 <*> mhatInv
 
@@ -69,13 +71,13 @@ instance (ReflectsTI q z, Ring (Exp z), PID z, PID (Exp z), ToInteger z, Enumera
 -- which otherwise would be quite difficult to obtain.
 --
 principalRootOfUnity
-    :: forall m q z. ( ReflectsTI q z, Ring z, ToInteger z, Enumerable (ZqBasic q z)
+    :: forall m q z . ( ReflectsTI q z, ToInteger z, Enumerable (ZqBasic q z)
                      , Reflects m Int, Ring (Exp z), Typeable (ZqBasic q) )
     => TaggedT m Maybe (Exp Int -> Exp (ZqBasic q z))
 principalRootOfUnity =
   let
       q        = LP.fromIntegral (proxy value (Proxy::Proxy q) :: z)    -- use Integer for intermediates
-      mval     = proxy value (Proxy::Proxy m)
+      mval     = proxy value (Proxy::Proxy m) :: Int
       order    = q-1                                                    -- order is Zq^* (assuming q is prime)
       pfactors = LP.fst <$> factorise order                             -- the primes dividing the order of Zq^*
       exps     = LP.div order <$> pfactors                              -- powers we need to check
@@ -88,19 +90,19 @@ principalRootOfUnity =
             else Nothing
 
 mhatInv
-    :: forall m q z. (CRTrans Maybe Int (ZqBasic q z), PID z, Reflects m Int, Elt z, Typeable (ZqBasic q))
+    :: forall m q z. (CRTrans Maybe (ZqBasic q z), Reflects m Int, Elt z, Typeable (ZqBasic q))
     => TaggedT m Maybe (Exp (ZqBasic q z))
 mhatInv =
-  constant . LP.snd <$> (crtInfo :: TaggedT m Maybe (CRTInfo Int (ZqBasic q z)))
+  constant . LP.snd <$> (crtInfo :: TaggedT m Maybe (CRTInfo (ZqBasic q z)))
 
-
+--constant :: i -> Exp i
 -- ZPP instance
 -- ------------
 
 type instance CharOf (Exp (ZqBasic q z)) = q
 
 instance ( PPow pp, zq ~ Exp (ZqBasic pp z), PrimeField (ZpOf zq)
-         , Ring zq, Ring (ZpOf zq)
+         , Ring zq
          , Elt z, Typeable pp , Typeable (ZqBasic (PrimePP pp))
          )
     => ZPP (Exp (ZqBasic (pp :: PrimePower) z)) where
@@ -123,7 +125,7 @@ instance (ReflectsTI q z, Ring (Exp z), Typeable (ZqBasic q)) => Lift' (Exp (ZqB
 instance (ReflectsTI q z, Additive (Exp z), Typeable (ZqBasic q)) => Reduce (Exp z) (Exp (ZqBasic q z)) where
   reduce = reduce'
 
-instance (ReflectsTI q z, ToInteger z, Enum z, Typeable (ZqBasic q), Elt z) => Enumerable (Exp (ZqBasic q z)) where
+instance (ReflectsTI q z, ToInteger z, Enum z, Typeable (ZqBasic q)) => Enumerable (Exp (ZqBasic q z)) where
   values = LP.map A.constant values
 
 
@@ -151,7 +153,7 @@ instance (ReflectsTI q z, ToInteger z, Ring (Exp z), Typeable (ZqBasic q)) => Ri
           in
           reduce' (x' LP.* y')
   --
-  fromInteger = constant . fromInteger
+  fromInteger = constant . LP.fromInteger
 
 
 instance (ReflectsTI q z, ToInteger z, PID (Exp z), Typeable (ZqBasic q))
@@ -162,7 +164,7 @@ instance (ReflectsTI q z, ToInteger z, PID (Exp z), Typeable (ZqBasic q))
             in
             A.lift (ZqB (z `modinv` q))
 
-instance (Field (Exp (ZqBasic q z)), Typeable (ZqBasic q)) => IntegralDomain.C (Exp (ZqBasic q z)) where
+instance (Field (Exp (ZqBasic q z)), Typeable (ZqBasic q), ReflectsTI q z, ToInteger z, Ring (Exp z)) => IntegralDomain.C (Exp (ZqBasic q z)) where
   divMod a b = (a LP./ b, zero)
 
 instance (ZeroTestable.C (Exp z), Elt z, Typeable (ZqBasic q)) => ZeroTestable.C (Exp (ZqBasic q z)) where

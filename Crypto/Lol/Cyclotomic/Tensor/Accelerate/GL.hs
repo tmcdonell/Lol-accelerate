@@ -36,7 +36,7 @@ import Data.Array.Accelerate.Algebra.ZeroTestable                   ( isZero )
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-import Crypto.Lol.LatticePrelude                                    hiding ( ZeroTestable, isZero )
+import Crypto.Lol.Prelude                                    hiding ( ZeroTestable, isZero )
 
 
 type ZeroTestable a = ZeroTestable.C a
@@ -90,7 +90,7 @@ fGInvDec = wrapGInv pGInvDec
 -- Implementations
 -- ---------------
 
-pWrap :: forall p r. Prim p
+pWrap :: forall p r. Prime p
       => (Int -> Acc (Array DIM2 r) -> Acc (Array DIM2 r))
       -> Tagged p (Trans r)
 pWrap f
@@ -100,10 +100,10 @@ pWrap f
     pval = proxy valuePrime (Proxy :: Proxy p)
 
 
-pL :: (Prim p, Additive (Exp r), Elt r) => Tagged p (Trans r)
+pL :: (Prime p, Additive (Exp r), Elt r) => Tagged p (Trans r)
 pL = pWrap $ \_ arr -> scanl1_2d (+) arr
 
-pLInv :: forall p r. (Prim p, Additive (Exp r), Elt r) => Tagged p (Trans r)
+pLInv :: forall p r. (Prime p, Additive (Exp r), Elt r) => Tagged p (Trans r)
 pLInv = pWrap $ \_ arr ->
   let
       f :: Exp DIM2 -> Exp r
@@ -119,7 +119,7 @@ pLInv = pWrap $ \_ arr ->
 -- Note that this is incorrect for p==2, but we should never use that case
 -- thanks to pWrap.
 --
-pGPow :: forall p r. (Prim p, Additive (Exp r), Elt r) => Tagged p (Trans r)
+pGPow :: forall p r. (Prime p, Additive (Exp r), Elt r) => Tagged p (Trans r)
 pGPow = pWrap $ \p arr ->
   let
       f :: Exp DIM2 -> Exp r
@@ -134,7 +134,7 @@ pGPow = pWrap $ \p arr ->
 
 -- Multiplication by g_p == 1 - zeta_p in the decoding basis
 --
-pGDec :: forall p r. (Prim p, Additive (Exp r), Elt r) => Tagged p (Trans r)
+pGDec :: forall p r. (Prime p, Additive (Exp r), Elt r) => Tagged p (Trans r)
 pGDec = pWrap $ \_ arr ->
   let
       s = A.fold (+) zero arr
@@ -152,7 +152,7 @@ pGDec = pWrap $ \_ arr ->
 
 wrapGInv
     :: forall m r. (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
-    => (forall p. Prim p => Tagged p (Trans r))
+    => (forall p. Prime p => Tagged p (Trans r))
     -> Arr m r
     -> Maybe (Arr m r)
 wrapGInv gInv arr =
@@ -179,7 +179,7 @@ divCheck arr den =
 
 -- Doesn't do division by (odd) p
 --
-pGInvPow :: forall p r. (Prim p, Ring (Exp r), A.FromIntegral Int r, Elt r) => Tagged p (Trans r)
+pGInvPow :: forall p r. (Prime p, Ring (Exp r), A.FromIntegral Int r, Elt r) => Tagged p (Trans r)
 pGInvPow = pWrap $ \p arr ->
   let
       sl   = scanl1_2d (+) arr
@@ -195,7 +195,7 @@ pGInvPow = pWrap $ \p arr ->
 
 -- Doesn't do division by (odd) p
 --
-pGInvDec :: forall p r. (Prim p, Ring (Exp r), A.FromIntegral Int r, Elt r) => Tagged p (Trans r)
+pGInvDec :: forall p r. (Prime p, Ring (Exp r), A.FromIntegral Int r, Elt r) => Tagged p (Trans r)
 pGInvDec = pWrap $ \p arr ->
   let
       nats = A.generate (A.shape arr) (\ix -> A.fromIntegral (A.indexHead ix) + one)

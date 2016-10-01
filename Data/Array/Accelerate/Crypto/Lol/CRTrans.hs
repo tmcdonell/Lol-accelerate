@@ -33,7 +33,7 @@ import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcend
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
 
 import Crypto.Lol.CRTrans
-import Crypto.Lol.LatticePrelude                                    as LP
+import Crypto.Lol.Prelude                                    as LP
 import Crypto.Lol.Reflects
 
 
@@ -42,8 +42,10 @@ import Crypto.Lol.Reflects
 
 -- CRTrans for product rings
 --
-instance (CRTrans monad (Exp i) (Exp a), CRTrans monad (Exp i) (Exp b), Elt a, Elt b)
-    => CRTrans monad (Exp i) (Exp (a,b)) where
+instance (CRTrans monad (Exp a), CRTrans monad (Exp b), Elt a, Elt b,
+          CRTIndex (Exp a) ~ Exp Int, CRTIndex (Exp b) ~ Exp Int)
+    => CRTrans monad (Exp (a,b)) where
+  type CRTIndex (Exp (a,b)) = Exp Int
   crtInfo = do
     (fa, inva :: Exp a) <- crtInfo
     (fb, invb :: Exp b) <- crtInfo
@@ -51,13 +53,15 @@ instance (CRTrans monad (Exp i) (Exp a), CRTrans monad (Exp i) (Exp b), Elt a, E
 
 -- Complex numbers have roots of unity of any order
 --
-instance (Monad monad, Transcendental (Exp a), A.Num a, A.FromIntegral Int a, Elt a)
-    => CRTrans monad (Exp Int) (Exp (Complex a)) where
+instance (Monad monad, Transcendental (Exp a), A.Num a, A.FromIntegral Int a)
+    => CRTrans monad (Exp (Complex a)) where
+  type CRTIndex (Exp (Complex a)) = Exp Int
   crtInfo = crtInfoC
 
 crtInfoC
-    :: forall monad m a. (Monad monad, Reflects m Int, Transcendental (Exp a), A.Num a, A.FromIntegral Int a, Elt a)
-    => TaggedT m monad (CRTInfo (Exp Int) (Exp (Complex a)))
+    :: forall monad m a . (Monad monad, Reflects m Int,
+                           Transcendental (Exp a), A.Num a, A.FromIntegral Int a)
+    => TaggedT m monad (CRTInfo (Exp (Complex a)))
 crtInfoC =
   let
       mval = constant $ proxy value (Proxy::Proxy m)
@@ -69,18 +73,24 @@ crtInfoC =
          )
 
 omegaPowC
-    :: (Transcendental (Exp a), A.Num a, A.FromIntegral Int a, Elt a)
+    :: (Transcendental (Exp a), A.Num a, A.FromIntegral Int a)
     => Exp Int
     -> Exp Int
     -> Exp (Complex a)
-omegaPowC m i = A.cis (2 * LP.pi * A.fromIntegral i / A.fromIntegral m)
+omegaPowC m i = A.cis (2 * LP.pi * (A.fromIntegral i) / A.fromIntegral m)
 
 -- CRTrans instances for real and integer types, which do not have roots of
 -- unity (except in trivial cases).
 --
-instance CRTrans Maybe (Exp Int) (Exp Double) where crtInfo = tagT Nothing
-instance CRTrans Maybe (Exp Int) (Exp Int)    where crtInfo = tagT Nothing
-instance CRTrans Maybe (Exp Int) (Exp Int64)  where crtInfo = tagT Nothing
+instance CRTrans Maybe (Exp Double) where
+  type CRTIndex (Exp Double) = Exp Int
+  crtInfo = tagT Nothing
+instance CRTrans Maybe (Exp Int)    where
+  type CRTIndex (Exp Int) = Exp Int
+  crtInfo = tagT Nothing
+instance CRTrans Maybe (Exp Int64)  where
+  type CRTIndex (Exp Int64) = Exp Int
+  crtInfo = tagT Nothing
 
 
 

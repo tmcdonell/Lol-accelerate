@@ -38,7 +38,7 @@ import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralD
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-import Crypto.Lol.LatticePrelude
+import Crypto.Lol.Prelude
 
 import Data.Singletons.Prelude                                      ( Sing(..), sing )
 
@@ -88,14 +88,12 @@ instance (Elt r, Random r, Fact m) => Random (Arr m r) where
       return $! Arr (A.use (A.fromList sh xs))
 
 
-wrap :: (Elt a, Elt b)
-     => (Acc (Array DIM1 a) -> Acc (Array DIM1 b))
+wrap :: (Acc (Array DIM1 a) -> Acc (Array DIM1 b))
      -> Arr m  a
      -> Arr m' b
 wrap f = Arr . f . unArr
 
-wrap2 :: (Elt a, Elt b, Elt c)
-      => (Acc (Array DIM1 a) -> Acc (Array DIM1 b) -> Acc (Array DIM1 c))
+wrap2 :: (Acc (Array DIM1 a) -> Acc (Array DIM1 b) -> Acc (Array DIM1 c))
       -> Arr ma a
       -> Arr mb b
       -> Arr mc c
@@ -222,7 +220,7 @@ unexpose r arr = A.backpermute sh f arr
 -- any prime power
 --
 fTensor
-    :: forall m r monad. (Fact m, Monad monad, Elt r)
+    :: forall m r monad. (Fact m, Monad monad)
     => (forall pp. PPow pp => TaggedT pp monad (Trans r))
     -> TaggedT m monad (Trans r)
 fTensor f = tagT . go $ sUnF (sing :: SFactored m)
@@ -239,7 +237,7 @@ fTensor f = tagT . go $ sUnF (sing :: SFactored m)
 --
 ppTensor
     :: forall pp r monad. (PPow pp, Monad monad)
-    => (forall p. Prim p => TaggedT p monad (Trans r))
+    => (forall p. Prime p => TaggedT p monad (Trans r))
     -> TaggedT pp monad (Trans r)
 ppTensor f = tagT $ go (sing :: SPrimePower pp)
   where

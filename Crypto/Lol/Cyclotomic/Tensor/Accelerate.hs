@@ -8,7 +8,8 @@
 {-# LANGUAGE PolyKinds             #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE UndecidableInstances  #-}
+{-# OPTIONS_GHC -fno-warn-orphans  #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate
 -- Copyright   : [2016] Trevor L. McDonell
@@ -23,7 +24,7 @@
 
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate (
 
-  Tensor(..), AT, TRep,
+  AT,
 
 ) where
 
@@ -52,23 +53,28 @@ import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow        as Pow
 
 -- lol
 import Crypto.Lol.Cyclotomic.Tensor
-import Crypto.Lol.LatticePrelude                                    as P
+import qualified Crypto.Lol.Prelude as P
+import Crypto.Lol.Prelude                                    as P hiding (FromIntegral)
 
 -- other libraries
 import Control.Applicative
 import Data.Constraint
+
+import Crypto.Lol.CRTrans
 
 
 -- | Accelerate-backed Tensor instance
 --
 instance Tensor AT where
   type TElt AT r = ( Elt r
+                   , CRTIndex (Exp r) ~ Exp Int
                    , A.FromIntegral Int r
                    , A.Eq r                   -- entailEqT
                    , ZeroTestable.C (Exp r)   -- entalZTT, divGPow, divGDec
                    , Additive.C (Exp r)       -- entailModuleT
                    , Ring.C (Exp r)           -- entailModuleT
                    )
+  type TRep AT r = Exp r
 
   entailIndexT  = tag $ Sub Dict
   entailEqT     = tag $ Sub Dict
@@ -78,11 +84,13 @@ instance Tensor AT where
   entailShowT   = tag $ Sub Dict
   entailModuleT = tag $ Sub Dict
 
+  rep = return . A.constant
+
   -- Make a raw value available for process in Accelerate
-  constant x    = tag (A.constant x)
+  --constant x    = tag (A.constant x)
 
   -- Convert a scalar to a tensor in the powerful basis
-  scalarPow     = AT . Pow.scalar
+  scalarPow     = AT . Pow.scalar . A.constant
 
   -- 'l' converts from decoding-basis representation to powerful-basis
   -- representation; 'lInv' is its inverse.
@@ -101,11 +109,14 @@ instance Tensor AT where
   -- A tuple of all the operations relating to the CRT basis, in a single
   -- 'Maybe' value for safety. Clients should typically use the corresponding
   -- top-level functions instead.
-  crtFuncs      = (,,,,) <$> ((AT.)   <$> CRT.scalar)
+  crtFuncs      = (,,,,) <$> ((AT.)  <$> scalarCRT')
                          <*> (AT.wrap <$> CRT.mulGCRT)
                          <*> (AT.wrap <$> CRT.divGCRT)
                          <*> (AT.wrap <$> CRT.fCRT)
                          <*> (AT.wrap <$> CRT.fCRTInv)
+
+
+                         --_ :: f (r -> b) -> f (Exp r -> b)
 
   -- Sample from the "tweaked" Gaussian error distribution @t*D@ in the decoding
   -- basis, where @D@ has scaled variance @v@.
@@ -115,7 +126,7 @@ instance Tensor AT where
   -- @R@, yield the (scaled) squared norm of @g_m \cdot e@ under the canonical
   -- embedding, namely:
   --
-  --   @ \hat{m}^{-1} \cdot || \sigma ( g_m \cdot e ) ||^2 @
+  --   @ \hat{m}^{ -1 } \cdot || \sigma ( g_m \cdot e ) ||^2 @
   gSqNormDec    = AT.unwrap Dec.gSqNorm
 
   -- The @twace@ linear transformation, which is the same in both the powerful
@@ -125,6 +136,7 @@ instance Tensor AT where
   -- The @embed@ linear transformations, for the powerful and decoding bases
   embedPow      = AT.wrap Pow.embed
   embedDec      = AT.wrap Dec.embed
+
 
   -- A tuple of all the extension-related operations involving the CRT basis, in
   -- a single 'Maybe' value for safety. Clients should typically use the
@@ -152,7 +164,6 @@ instance Tensor AT where
       AT (Arr xs') = toAT xs
       (ls,rs)      = A.unzip xs'
 
-
 -- missing instances
 -- -----------------
 
@@ -169,3 +180,12 @@ instance (Reduce a (Exp b), Reduce a (Exp c), Elt b, Elt c) => Reduce a (Exp (b,
     in
     A.lift (b,c)
 
+
+scalarCRT' :: (CRTrans mon (Exp r), Fact m, Elt r) => mon (r -> Arr m r)
+scalarCRT' = do
+  f <- CRT.scalar
+  return $ f . A.constant
+
+
+instance P.FromIntegral (Exp Int64) (Exp Double) where
+  fromIntegral' = A.fromIntegral

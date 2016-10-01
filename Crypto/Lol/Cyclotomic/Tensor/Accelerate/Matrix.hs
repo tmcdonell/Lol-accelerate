@@ -26,11 +26,10 @@ import qualified Data.Array.Accelerate                              as A
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
 
-import Crypto.Lol.LatticePrelude
+import Crypto.Lol.Prelude hiding (Matrix)
 
 import Data.Singletons.Prelude
 import Control.Applicative
-
 
 -- | A Kronecker product of zero or more matrices over @r@
 --
@@ -59,7 +58,7 @@ indexM (MKron mat (MC (Z:.r:.c) mc)) ix =
 
 
 fMatrix
-    :: forall monad m r. (Fact m, Monad monad, Ring (Exp r))
+    :: forall monad m r. (Fact m, Monad monad)
     => (forall pp. PPow pp => TaggedT pp monad (MatrixC r))
     -> TaggedT m monad (Matrix r)
 fMatrix mat = tagT $ go (sUnF (sing :: SFactored m))
@@ -73,8 +72,8 @@ fMatrix mat = tagT $ go (sUnF (sing :: SFactored m))
 -- @1_{p^{e-1}}@ ⊗ @M@, where @1@ denotes the all-1s vector.
 --
 ppMatrix
-    :: forall monad pp r. (PPow pp, Monad monad, Ring (Exp r))
-    => (forall p. Prim p => TaggedT p monad (MatrixC r))
+    :: forall monad pp r. (PPow pp, Monad monad)
+    => (forall p. Prime p => TaggedT p monad (MatrixC r))
     -> TaggedT pp monad (MatrixC r)
 ppMatrix mat = tagT $ go (sing :: SPrimePower pp)
   where

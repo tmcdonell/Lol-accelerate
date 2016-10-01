@@ -35,7 +35,7 @@ import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 
 import Crypto.Lol.GaussRandom                                       ( realGaussian )
-import Crypto.Lol.LatticePrelude                                    as P
+import Crypto.Lol.Prelude                                    as P hiding (FromIntegral)
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries
@@ -94,7 +94,7 @@ fE = eval $ fTensor $ ppTensor pE
 
 -- | The @E_p@ transformation for a prime @p@.
 --
-pE :: forall p r. (Prim p, Transcendental (Exp r), A.FromIntegral Int r, Elt r)
+pE :: forall p r. (Prime p, Transcendental (Exp r), A.FromIntegral Int r, Elt r)
    => Tagged p (Trans r)
 pE =
   let
@@ -148,7 +148,7 @@ fGram = eval $ fTensor $ ppTensor pGramDec
 -- | Multiply by the (scaled) Gram matrix of decoding basis: @I_{p-1} + all-1s@
 --
 pGramDec
-    :: forall p r. (Prim p, Ring (Exp r), Elt r)
+    :: forall p r. (Prime p, Ring (Exp r), Elt r)
     => Tagged p (Trans r)
 pGramDec =
   let

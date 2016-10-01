@@ -33,7 +33,7 @@ import qualified Data.Array.Accelerate.Algebra.Additive             as Additive 
 
 -- lol/lol-accelerate
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
-import Crypto.Lol.LatticePrelude                                    as P
+import Crypto.Lol.Prelude                                    as P
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries

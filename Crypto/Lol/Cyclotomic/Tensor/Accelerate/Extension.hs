@@ -37,7 +37,7 @@ import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
 
 import Data.Array.Accelerate.Crypto.Lol.CRTrans
 
-import Crypto.Lol.LatticePrelude                                    as P
+import Crypto.Lol.Prelude                                    as P hiding (FromIntegral)
 import Crypto.Lol.Types.FiniteField
 import Crypto.Lol.Types.ZmStar
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
@@ -65,13 +65,13 @@ twacePowDec (Arr arr) =
 -- to the m`th cyclotomic ring, when @m | m'@
 --
 twaceCRT
-    :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp Int) (Exp r), FromIntegral Int r, Elt r)
+    :: forall monad m m' r. (m `Divides` m', CRTIndex (Exp r) ~ Exp Int, CRTrans monad (Exp r), FromIntegral Int r, Elt r)
     => monad (Arr m' r -> Arr m r)
 twaceCRT = do
   g             <- CRT.gCRT     :: monad (Arr m' r)
   gInv          <- CRT.gInvCRT  :: monad (Arr m r)
   embed         <- CRT.embed    :: monad (Arr m r -> Arr m' r)
-  (_, m'hatInv) <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp Int) (Exp r))
+  (_, m'hatInv) <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp r))
   let
       vhf         = proxy valueHatFact  (Proxy::Proxy m)
       indices     = proxy extIndicesCRT (Proxy::Proxy '(m,m'))
@@ -122,14 +122,14 @@ crtSetDec =
     let
         -- Internally, finite fields are represented as a polynomial whose
         -- coefficients are stored in a list, which is not representable in Exp.
-        twCRTs :: T.Matrix (GF fp d)
+        twCRTs :: T.Kron (GF fp d)
         twCRTs = fromMaybe (error "Internal error: Accelerate.crtSetDec")
                $ proxyT T.twCRTs (Proxy::Proxy m')
 
         trace' :: GF fp d -> fp   -- To avoid recomputing powTraces
         trace' = trace
 
-        index j i   = T.indexM twCRTs j (zmsToIdx i)
+        index j i   = T.indexK twCRTs j (zmsToIdx i)
         f is (Z:.j) = hinv * trace' (P.sum [ index j i | i <- is ])
     in
     P.map (Arr . A.use . A.fromFunction (Z:.phi) . f) cosets
