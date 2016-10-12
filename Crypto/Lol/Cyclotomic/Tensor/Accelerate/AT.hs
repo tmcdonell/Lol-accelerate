@@ -38,6 +38,7 @@ import Crypto.Lol.Prelude                                    as P
 import Crypto.Lol.Reflects
 import Crypto.Lol.Types.FiniteField                                 as FF
 import Crypto.Lol.Types.IZipVector
+import Crypto.Lol.Utils.ShowType
 
 import Data.Array.Accelerate.Algebra.Additive                       as Additive
 import Data.Array.Accelerate.Algebra.Module                         as Module
@@ -61,6 +62,9 @@ import qualified Data.Vector.Generic                                as V
 data AT (m :: Factored) r where
   AT :: Elt r => Arr m r -> AT m r
   ZV :: IZipVector m r -> AT m r
+
+instance Show (ArgType AT) where
+  show _ = "AT"
 
 --type instance TRep AT r = Exp r
 

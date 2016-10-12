@@ -97,3 +97,29 @@ source-repository head
 
 -- vim: nospell
 
+Benchmark bench-acc
+  type:               exitcode-stdio-1.0
+  default-language:   Haskell2010
+  main-is:            Main.hs
+  hs-source-dirs:     benchmarks
+
+  ghc-options: -O2 -funfolding-creation-threshold=15000 -funfolding-use-threshold=1000
+
+  build-depends:
+    base,
+    DRBG,
+    lol,
+    lol-accelerate,
+    lol-benches
+
+test-suite test-acc
+  type:               exitcode-stdio-1.0
+  default-language:   Haskell2010
+  main-is:            Main.hs
+  hs-source-dirs:     tests
+
+  build-depends:
+    base,
+    lol-accelerate,
+    lol-tests,
+    test-framework
