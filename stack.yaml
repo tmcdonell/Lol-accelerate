@@ -24,9 +24,9 @@ packages:
 #    - 'lol-test'
 #    - 'lol-bench'
 
-- ../Lol/lol
-- ../Lol/lol-benches
-- ../Lol/lol-tests
+- ../acctensor/lol
+- ../acctensor/lol-benches
+- ../acctensor/lol-tests
 
 #- location:
 #    git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
