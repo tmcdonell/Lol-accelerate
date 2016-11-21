@@ -121,5 +121,4 @@ test-suite test-acc
   build-depends:
     base,
     lol-accelerate,
-    lol-tests,
-    test-framework
+    lol-tests

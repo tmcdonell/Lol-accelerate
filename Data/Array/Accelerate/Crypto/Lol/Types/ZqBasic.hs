@@ -34,7 +34,7 @@ import Crypto.Lol.Prelude                                    as LP hiding ( modi
 import Crypto.Lol.Reflects
 import Crypto.Lol.Types.FiniteField
 import Crypto.Lol.Types.ZPP
-import Crypto.Lol.Types.ZqBasic
+import Crypto.Lol.Types.Unsafe.ZqBasic
 
 import qualified Algebra.ZeroTestable                               as NPZT
 

@@ -46,8 +46,8 @@ import Data.Array.Accelerate.Algebra.Ring                           hiding ( C )
 import Data.Array.Accelerate.Algebra.Transcendental                 hiding ( C )
 import Data.Array.Accelerate.Algebra.ZeroTestable                   hiding ( C )
 
-import Crypto.Lol.Types.Complex                                     ( Complex(..) )
-import qualified Crypto.Lol.Types.Complex                           as C
+import Crypto.Lol.Types.Unsafe.Complex                              ( Complex(..) )
+import qualified Crypto.Lol.Types.Unsafe.Complex                    as C
 import qualified Number.Complex                                     as NP
 
 import Prelude                                                      ( ($), (.), undefined )
