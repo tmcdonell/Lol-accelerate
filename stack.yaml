@@ -15,24 +15,9 @@ packages:
     commit: a5e73442fd987243de12bfb0c1ff7a87d701ea94
   extra-dep: true
 
-#- location:
-#    git:    https://github.com/tmcdonell/Lol.git
-#    commit: d6a0987d3a3fe554989d72a5bfe4d4713b3f3508
-#  extra-dep: true
-#  subdirs:
-#    - 'lol'
-#    - 'lol-test'
-#    - 'lol-bench'
-
-- ../acctensor/lol
-- ../acctensor/lol-benches
-- ../acctensor/lol-tests
-
-#- location:
-#    git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
-#    commit: 53fe516f23c3001cc784dc6ca2e79ab60c295291
-#  extra-dep: true
-
+- ../lol
+- ../lol-benches
+- ../lol-tests
 - ../numeric-prelude-accelerate
 
 - location:
