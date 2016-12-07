@@ -51,7 +51,7 @@ instance (ReflectsTI q z, Ring (Exp (ZqBasic q z)), FromIntegral z Double, Typea
     => CRTEmbed (Exp (ZqBasic q z)) where
   type CRTExt (Exp (ZqBasic q z)) = Exp (Complex Double)
   --
-  toExt x = let ZqB z = unliftZq x
+  toExt x = let ZqB z = unlift x
             in  A.fromReal (A.fromIntegral z)
   fromExt = reduce' . A.round . A.real
 
@@ -110,7 +110,7 @@ instance ( PPow pp, zq ~ Exp (ZqBasic pp z), PrimeField (ZpOf zq)
   type ZpOf (Exp (ZqBasic pp z)) = Exp (ZqBasic (PrimePP pp) z)
   --
   modulusZPP = retag (ppPPow :: Tagged pp PP)
-  liftZp x   = let ZqB z = unliftZq x
+  liftZp x   = let ZqB z = unlift x :: ZqBasic (PrimePP pp) (Exp z)
                in  A.lift (ZqB z)
 
 
@@ -136,20 +136,20 @@ instance (ReflectsTI q z, Additive (Exp z), Typeable (ZqBasic q)) => Additive.C 
   zero  = A.lift (ZqB (zero :: Exp z))
   x + y = let
               q      = constant $ proxy value (Proxy::Proxy q)
-              ZqB x' = unliftZq x
-              ZqB y' = unliftZq y
+              ZqB x' = unlift x
+              ZqB y' = unlift y
               z      = x' LP.+ y'
           in
           A.lift $ ZqB (z A.>= q ? ( z LP.- q, z ))
   --
-  negate x = let ZqB z = unliftZq x
+  negate x = let ZqB z = unlift x
              in  reduce' (LP.negate z)
 
 
 instance (ReflectsTI q z, ToInteger z, Ring (Exp z), Typeable (ZqBasic q)) => Ring.C (Exp (ZqBasic q z)) where
   x * y = let
-              ZqB x' = unliftZq x
-              ZqB y' = unliftZq y
+              ZqB x' = unlift x
+              ZqB y' = unlift y
           in
           reduce' (x' LP.* y')
   --
@@ -160,7 +160,7 @@ instance (ReflectsTI q z, ToInteger z, PID (Exp z), Typeable (ZqBasic q))
     => Field.C (Exp (ZqBasic q z)) where
   recip x = let
                 q     = constant $ proxy value (Proxy::Proxy q)
-                ZqB z = unliftZq x
+                ZqB z = unlift x
             in
             A.lift (ZqB (z `modinv` q))
 
@@ -168,7 +168,7 @@ instance (Field (Exp (ZqBasic q z)), Typeable (ZqBasic q), ReflectsTI q z, ToInt
   divMod a b = (a LP./ b, zero)
 
 instance (ZeroTestable.C (Exp z), Elt z, Typeable (ZqBasic q)) => ZeroTestable.C (Exp (ZqBasic q z)) where
-  isZero (unliftZq -> ZqB z) = ZeroTestable.isZero z
+  isZero (unlift -> ZqB z :: ZqBasic q (Exp z)) = ZeroTestable.isZero z
 
 instance NPZT.C (Exp (ZqBasic q z)) where
   isZero = error "numeric-prelude error: use Data.Array.Accelerate.Algebra.ZeroTestable.isZero instead"
@@ -178,8 +178,8 @@ instance NPZT.C (Exp (ZqBasic q z)) where
 -- --------------------
 
 instance (A.Eq z, Typeable (ZqBasic q)) => A.Eq (ZqBasic q z) where
-  (unliftZq -> ZqB x) == (unliftZq -> ZqB y) = x A.== y
-  (unliftZq -> ZqB x) /= (unliftZq -> ZqB y) = x A./= y
+  (==) = lift2 (A.==)
+  (/=) = lift2 (A./=)
 
 instance (A.FromIntegral a z, Elt z, Typeable (ZqBasic q)) => A.FromIntegral a (ZqBasic q z) where
   fromIntegral = A.lift . ZqB . A.fromIntegral
@@ -214,7 +214,7 @@ decode'
     -> Exp z
 decode' x =
   let qval  = proxy value (Proxy::Proxy q)
-      ZqB z = unliftZq x
+      ZqB z = unlift x
   in
   2 * z A.< constant qval ? ( z, z - constant qval )
 
@@ -229,16 +229,10 @@ modinv a q =
   in  d A.== one ? ( inv `LP.mod` q, {- TLM: error!!?1 -} zero )
 
 
-unliftZq :: (Elt z, Typeable (ZqBasic q)) => Exp (ZqBasic q z) -> ZqBasic q (Exp z)
-unliftZq z = ZqB (Exp $ ZeroTupIdx `Prj` z)
-
-
 -- Lifting ZqBasic into Accelerate
 -- -------------------------------
 
--- Bundling 'z' in a tuple with unit in order to define an 'IsProduct' instance,
--- and from there a 'Lift'. This still doesn't let us define 'Unlift', however
--- (see below).
+-- Bundling 'z' in a tuple with unit in order to distinguish it from plain 'z'.
 --
 type instance EltRepr (ZqBasic q z) = ((), EltRepr z)
 
@@ -248,20 +242,15 @@ instance (Elt z, Typeable (ZqBasic q)) => Elt (ZqBasic q z) where
   fromElt (ZqB z) = ((), fromElt z)
 
 instance Elt z => IsProduct Elt (ZqBasic q z) where
-  type ProdRepr (ZqBasic q z) = ProdRepr ((), z)
-  toProd _ t         = let ((), z) = toTuple t in ZqB z
-  fromProd _ (ZqB z) = fromTuple ((), z)
-  prod cst _         = prod cst (undefined :: ((), z))
+  type ProdRepr (ZqBasic q z) = ((), z)
+  toProd _ ((),z)    = ZqB z
+  fromProd _ (ZqB z) = ((), z)
+  prod _ _           = ProdRsnoc ProdRunit
 
 instance (A.Lift Exp z, Elt (Plain z), Typeable (ZqBasic q)) => A.Lift Exp (ZqBasic q z) where
   type Plain (ZqBasic q z) = ZqBasic q (Plain z)
-  --
-  lift (ZqB z) = Exp . Tuple $ NilTup `SnocTup` A.lift ()
-                                      `SnocTup` A.lift z
+  lift (ZqB z) = Exp . Tuple $ NilTup `SnocTup` A.lift z
 
--- Can't define an 'Unlift' instance because the type expected by unlift is not
--- what we wanted (TLM: why?). Instead, define our own 'unliftZq'.
---
--- instance (A.Unlift Exp z, Elt (Plain z), Typeable (ZqBasic q)) => A.Unlift Exp (ZqBasic q z) where
---   unlift :: Exp (Plain (ZqBasic q z)) -> ZqBasic q z ~~ !!
+instance (Elt z, Typeable (ZqBasic q)) => A.Unlift Exp (ZqBasic q (Exp z)) where
+  unlift z = ZqB . Exp $ ZeroTupIdx `Prj` z
 
