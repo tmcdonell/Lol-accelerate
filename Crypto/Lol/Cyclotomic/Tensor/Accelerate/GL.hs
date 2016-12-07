@@ -101,7 +101,7 @@ pWrap f
 
 
 pL :: (Prime p, Additive (Exp r), Elt r) => Tagged p (Trans r)
-pL = pWrap $ \_ arr -> scanl1_2d (+) arr
+pL = pWrap $ \_ arr -> A.scanl1 (+) arr
 
 pLInv :: forall p r. (Prime p, Additive (Exp r), Elt r) => Tagged p (Trans r)
 pLInv = pWrap $ \_ arr ->
@@ -182,8 +182,8 @@ divCheck arr den =
 pGInvPow :: forall p r. (Prime p, Ring (Exp r), A.FromIntegral Int r, Elt r) => Tagged p (Trans r)
 pGInvPow = pWrap $ \p arr ->
   let
-      sl   = scanl1_2d (+) arr
-      sr   = scanr_2d (+) zero arr
+      sl   = A.scanl1 (+) arr
+      sr   = A.scanr (+) zero arr
 
       f :: Exp DIM2 -> Exp r -> Exp r -> Exp r
       f ix x y  = let i = A.indexHead ix
@@ -200,7 +200,7 @@ pGInvDec = pWrap $ \p arr ->
   let
       nats = A.generate (A.shape arr) (\ix -> A.fromIntegral (A.indexHead ix) + one)
       sl   = A.fold (+) zero (A.zipWith (*) arr nats)
-      sr   = scanr_2d (+) zero arr
+      sr   = A.scanr (+) zero arr
 
       f :: Exp DIM2 -> Exp r -> Exp r
       f ix x = let Z :. j :. _ = A.unlift ix :: Z :. Exp Int :. Exp Int
@@ -209,25 +209,4 @@ pGInvDec = pWrap $ \p arr ->
                s - A.fromIntegral (A.constant p) * x
   in
   A.imap f sr
-
-
--- Accelerate doesn't have native multi-dimensional scans, so implement them
--- here via segmented scans. Segmented scans are similarly not a primitive
--- operation, so we may be able to do this more efficiently still.
---
-scanl1_2d :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Array DIM2 a) -> Acc (Array DIM2 a)
-scanl1_2d f arr = A.reshape (A.shape arr) p
-  where
-    Z :. h :. w = A.unlift (A.shape arr)
-    seg         = A.fill (A.index1 h) w
-    vec         = A.flatten arr
-    p           = A.scanl1Seg f vec seg
-
-scanr_2d :: Elt a => (Exp a -> Exp a -> Exp a) -> Exp a -> Acc (Array DIM2 a) -> Acc (Array DIM2 a)
-scanr_2d f z arr = A.reshape (A.shape arr) p
-  where
-    Z :. h :. w = A.unlift (A.shape arr)
-    seg         = A.fill (A.index1 h) w
-    vec         = A.flatten arr
-    p           = A.prescanrSeg f z vec seg
 
