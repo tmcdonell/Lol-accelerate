@@ -26,7 +26,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec (
 ) where
 
 -- accelerate
-import Data.Array.Accelerate                                        ( Acc, Array, DIM1, Exp, Elt, FromIntegral, Z(..), (:.)(..), All(..), (<*), (?) )
+import Data.Array.Accelerate                                        ( Acc, Array, DIM1, Exp, Elt, FromIntegral, Z(..), (:.)(..), All(..), (?) )
 import Data.Array.Accelerate.IO                                     as A
 import qualified Data.Array.Accelerate                              as A
 
@@ -35,7 +35,7 @@ import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 
 import Crypto.Lol.GaussRandom                                       ( realGaussian )
-import Crypto.Lol.Prelude                                    as P hiding (FromIntegral)
+import Crypto.Lol.Prelude                                           as P hiding ( FromIntegral )
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries
@@ -58,9 +58,9 @@ embed (Arr arr) =
       indices = proxy baseIndicesDec (Proxy::Proxy '(m,m'))
       f ib    =
         let (i,b) = A.unlift ib
-            x     = arr A.!! i            -- XXX: check this is not lifted out of (?)
-        in i <* zero ? ( zero             -- [See note: baseIndicesDec]
-         , b         ? ( P.negate x, x ))
+            x     = arr A.!! i              -- XXX: check this is not lifted out of (?)
+        in i A.< zero ? ( zero              -- [See note: baseIndicesDec]
+         , b          ? ( P.negate x, x ))
   in
   Arr $ A.map f indices
 
@@ -102,7 +102,7 @@ pE =
       mat  = A.generate (A.constant (Z :. pval-1 :. pval -1))
            $ \ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
                         theta       = 2 * pi * A.fromIntegral (i*(j+1)) / P.fromIntegral pval
-                        q           = j <* A.constant (pval `div` 2)
+                        q           = j A.< A.constant (pval `div` 2)
                                     ? ( cos theta, sin theta )
                     in
                     sqrt 2 * q

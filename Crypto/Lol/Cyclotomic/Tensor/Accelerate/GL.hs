@@ -36,7 +36,7 @@ import Data.Array.Accelerate.Algebra.ZeroTestable                   ( isZero )
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-import Crypto.Lol.Prelude                                    hiding ( ZeroTestable, isZero )
+import Crypto.Lol.Prelude                                           hiding ( ZeroTestable, isZero )
 
 
 type ZeroTestable a = ZeroTestable.C a
@@ -109,7 +109,7 @@ pLInv = pWrap $ \_ arr ->
       f :: Exp DIM2 -> Exp r
       f ix = let Z :. y :. x = A.unlift ix
                  u           = arr A.! ix
-                 v           = x A.>* 0 A.? ( arr A.! (A.index2 y (x-1)), zero )
+                 v           = x A.> 0 A.? ( arr A.! (A.index2 y (x-1)), zero )
              in u - v
   in
   A.generate (A.shape arr) f
@@ -126,7 +126,7 @@ pGPow = pWrap $ \p arr ->
       f ix = let Z :. y :. x = A.unlift ix
                  u           = arr A.! ix
                  v           = arr A.! A.index2 y (A.constant (p-2))
-                 w           = x A.>* 0 A.? ( arr A.! A.index2 y (x-1) , zero )
+                 w           = x A.> 0 A.? ( arr A.! A.index2 y (x-1) , zero )
              in
              u + v - w
   in
@@ -142,7 +142,7 @@ pGDec = pWrap $ \_ arr ->
       f :: Exp DIM2 -> Exp r
       f ix = let Z :. j :. i = A.unlift ix
                  u           = arr A.! ix
-                 v           = i A.==* 0 A.? ( s A.! A.index1 j
+                 v           = i A.== 0 A.? ( s A.! A.index1 j
                                              , negate (arr A.! A.index2 j (i-1)) )
              in
              u + v

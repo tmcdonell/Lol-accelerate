@@ -31,7 +31,7 @@ flag llvm-cpu
   description: Enable the LLVM backend for Multicore CPUs
   default:     False
 
-flag llvm-gpu
+flag llvm-ptx
   description: Enable the LLVM backend for NIVDIA GPUs
   default:     False
 
@@ -85,7 +85,7 @@ library
     build-depends:
         accelerate-llvm-native          >= 0.16
 
-  if flag(llvm-gpu)
+  if flag(llvm-ptx)
     cpp-options:      -DACCELERATE_LLVM_PTX_BACKEND
     build-depends:
         accelerate-llvm-ptx             >= 0.16
@@ -122,3 +122,6 @@ test-suite test-acc
     base,
     lol-accelerate,
     lol-tests
+
+-- vim: nospell
+

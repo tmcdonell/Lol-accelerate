@@ -33,7 +33,7 @@ import qualified Data.Array.Accelerate.Algebra.Additive             as Additive 
 
 -- lol/lol-accelerate
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
-import Crypto.Lol.Prelude                                    as P
+import Crypto.Lol.Prelude                                           as P
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries
@@ -51,7 +51,7 @@ scalar r =
       sh = constant (Z :. n)
 
       f :: Exp DIM1 -> Exp r
-      f (unindex1 -> i) = i ==* 0 ? ( r , zero )
+      f (unindex1 -> i) = i A.== 0 ? ( r , zero )
   in
   Arr $ generate sh f
 
@@ -67,7 +67,7 @@ embed (Arr arr) =
       indices = proxy baseIndicesPow (Proxy::Proxy '(m,m'))
       f jix   =
         let (j,ix) = A.unlift jix
-        in  j ==* zero ? ( arr A.!! ix , zero )
+        in  j A.== zero ? ( arr A.!! ix , zero )
   in
   Arr $ A.map f indices
 
@@ -83,7 +83,7 @@ powBasis =
       idxs              = proxy baseIndicesPow (Proxy::Proxy '(m,m'))
       ks                = [0 .. phi' `div` phi - 1]
       f k x             = let (j0,j1) = A.unlift x
-                          in  j0 ==* A.constant k &&* j1 ==* zero ? ( one, zero )
+                          in  j0 A.== A.constant k A.&& j1 A.== zero ? ( one, zero )
   in
   return $ P.map (\k -> Arr $ A.map (f k) idxs) ks
 

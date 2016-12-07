@@ -33,7 +33,7 @@ import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcend
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
 
 import Crypto.Lol.CRTrans
-import Crypto.Lol.Prelude                                    as LP
+import Crypto.Lol.Prelude                                           as LP
 import Crypto.Lol.Reflects
 
 
@@ -66,7 +66,7 @@ crtInfoC =
   let
       mval = constant $ proxy value (Proxy::Proxy m)
       mhat = let (d,m) = LP.divMod mval 2 -- this is @valueHat mval@ lifted to Exp
-             in  m ==* 0 ? ( d, mval )
+             in  m A.== 0 ? ( d, mval )
   in
   return ( omegaPowC mhat
          , LP.recip (A.fromReal (A.fromIntegral mhat))

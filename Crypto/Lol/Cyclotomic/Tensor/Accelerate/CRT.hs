@@ -430,7 +430,7 @@ butterfly = trans (2, flap)
                      x           = arr A.! A.index2 i 0
                      y           = arr A.! A.index2 i 1
                  in
-                 j A.==* 0 A.? ( x+y, x-y )
+                 j A.== 0 A.? ( x+y, x-y )
       in
       A.generate sh f
 

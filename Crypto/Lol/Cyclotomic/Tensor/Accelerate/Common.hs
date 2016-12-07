@@ -70,10 +70,10 @@ type role Arr nominal nominal
 -- some (possibly quite large) expression.
 --
 instance A.Eq r => Eq (Arr m r) where
-  a1 == a2 = let r = A.and (A.zipWith (A.==*) (unArr a1) (unArr a2))
+  a1 == a2 = let r = A.and (A.zipWith (A.==) (unArr a1) (unArr a2))
              in  A.indexArray (run r) Z
 
-  a1 /= a2 = let r = A.or (A.zipWith (A./=*) (unArr a1) (unArr a2))
+  a1 /= a2 = let r = A.or (A.zipWith (A./=) (unArr a1) (unArr a2))
              in  A.indexArray (run r) Z
 
 

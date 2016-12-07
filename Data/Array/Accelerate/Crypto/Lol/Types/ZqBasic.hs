@@ -30,7 +30,7 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
 
 import Crypto.Lol.CRTrans
-import Crypto.Lol.Prelude                                    as LP hiding ( modinv, FromIntegral )
+import Crypto.Lol.Prelude                                           as LP hiding ( modinv, FromIntegral )
 import Crypto.Lol.Reflects
 import Crypto.Lol.Types.FiniteField
 import Crypto.Lol.Types.ZPP
@@ -76,16 +76,16 @@ principalRootOfUnity
     => TaggedT m Maybe (Exp Int -> Exp (ZqBasic q z))
 principalRootOfUnity =
   let
-      q        = LP.fromIntegral (proxy value (Proxy::Proxy q) :: z)    -- use Integer for intermediates
+      q        = LP.fromIntegral (proxy value (Proxy::Proxy q) :: z)                  -- use Integer for intermediates
       mval     = proxy value (Proxy::Proxy m) :: Int
-      order    = q-1                                                    -- order is Zq^* (assuming q is prime)
-      pfactors = LP.fst <$> factorise order                             -- the primes dividing the order of Zq^*
-      exps     = LP.div order <$> pfactors                              -- powers we need to check
-      isGen x  = x^order == one && LP.all (\e -> x^e /= one) exps       -- whether an element is a generator of Zq^*
+      order    = q-1                                                                  -- order is Zq^* (assuming q is prime)
+      pfactors = LP.fst <$> factorise order                                           -- the primes dividing the order of Zq^*
+      exps     = LP.div order <$> pfactors                                            -- powers we need to check
+      isGen x  = x LP.^ order LP.== one LP.&& LP.all (\e -> x LP.^ e LP./= one) exps  -- whether an element is a generator of Zq^*
       (mq,mr)  = order `LP.divMod` LP.fromIntegral mval
-      omega    = head (LP.filter isGen values) ^ mq
+      omega    = head (LP.filter isGen values) LP.^ mq
   in
-  tagT $ if isPrime q && mr == 0
+  tagT $ if isPrime q LP.&& mr LP.== 0
             then Just $ \i -> A.iterate (i `LP.mod` constant mval) (LP.* constant omega) one -- omega ** (i `mod` m) ??
             else Nothing
 
@@ -140,7 +140,7 @@ instance (ReflectsTI q z, Additive (Exp z), Typeable (ZqBasic q)) => Additive.C 
               ZqB y' = unliftZq y
               z      = x' LP.+ y'
           in
-          A.lift $ ZqB (z >=* q ? ( z LP.- q, z ))
+          A.lift $ ZqB (z A.>= q ? ( z LP.- q, z ))
   --
   negate x = let ZqB z = unliftZq x
              in  reduce' (LP.negate z)
@@ -178,8 +178,8 @@ instance NPZT.C (Exp (ZqBasic q z)) where
 -- --------------------
 
 instance (A.Eq z, Typeable (ZqBasic q)) => A.Eq (ZqBasic q z) where
-  (unliftZq -> ZqB x) ==* (unliftZq -> ZqB y) = x ==* y
-  (unliftZq -> ZqB x) /=* (unliftZq -> ZqB y) = x /=* y
+  (unliftZq -> ZqB x) == (unliftZq -> ZqB y) = x A.== y
+  (unliftZq -> ZqB x) /= (unliftZq -> ZqB y) = x A./= y
 
 instance (A.FromIntegral a z, Elt z, Typeable (ZqBasic q)) => A.FromIntegral a (ZqBasic q z) where
   fromIntegral = A.lift . ZqB . A.fromIntegral
@@ -216,7 +216,7 @@ decode' x =
   let qval  = proxy value (Proxy::Proxy q)
       ZqB z = unliftZq x
   in
-  2 * z <* constant qval ? ( z, z - constant qval )
+  2 * z A.< constant qval ? ( z, z - constant qval )
 
 
 -- | Inverse of @a@ modulo @q@, in range @[0..q-1]@.
@@ -226,7 +226,7 @@ decode' x =
 modinv :: (PID (Exp i), A.Eq i) => Exp i -> Exp i -> Exp i
 modinv a q =
   let (d, (_, inv)) = extendedGCD q a
-  in  d ==* one ? ( inv `LP.mod` q, {- TLM: error!!?1 -} zero )
+  in  d A.== one ? ( inv `LP.mod` q, {- TLM: error!!?1 -} zero )
 
 
 unliftZq :: (Elt z, Typeable (ZqBasic q)) => Exp (ZqBasic q z) -> ZqBasic q (Exp z)
