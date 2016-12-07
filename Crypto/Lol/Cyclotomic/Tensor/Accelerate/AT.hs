@@ -34,7 +34,7 @@ import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               hiding ( wra
 --import Crypto.Lol.Cyclotomic.Tensor.Representation
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common     as Arr
 
-import Crypto.Lol.Prelude                                    as P
+import Crypto.Lol.Prelude                                           as P
 import Crypto.Lol.Reflects
 import Crypto.Lol.Types.FiniteField                                 as FF
 import Crypto.Lol.Types.IZipVector
@@ -79,7 +79,9 @@ instance Show (ArgType AT) where
 
 -- Standard instances
 
-deriving instance Show r => Show (AT m r)
+instance Show r => Show (AT m r) where
+  show (ZV z) = show (unIZipVector z)
+  show (AT a) = show (run (unArr a))    -- runs but then discards the results ):
 
 instance (P.Eq r, A.Eq r) => P.Eq (AT m r) where
   ZV a == ZV b = a == b
@@ -149,7 +151,7 @@ instance (NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) where
 -- Miscellaneous instances
 
 instance NFData r => NFData (AT m r) where
-  rnf (AT !_) = ()      -- lies.
+  rnf (AT at) = rnf (run (unArr at))    -- runs but then discards the results ):
   rnf (ZV zv) = rnf zv
 
 instance (Elt r, Random r, Fact m) => Random (AT m r) where
@@ -221,5 +223,5 @@ wrapM :: (Monad monad, Elt r, Elt r')
       -> monad (AT m' r')
 wrapM f (toAT -> AT arr) = AT <$> f arr
 wrapM _ _ =
-  error "Why do you have a miniature block hole on your coffee table?"
+  error "Why do you have a miniature black hole on your coffee table?"
 
