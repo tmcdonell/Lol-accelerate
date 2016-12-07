@@ -1,41 +1,38 @@
 # vim: nospell
 language: minimal
-sudo: false
+dist: precise
 
 cache:
   directories:
     - $HOME/.stack
+    - .stack-work/install
+
+addons:
+  apt:
+    sources: &apt_sources
+      - hvr-ghc
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-precise
+      - llvm-toolchain-precise-3.5
+      - llvm-toolchain-precise-3.8
+    packages: &apt_packages
+      - nvidia-cuda-toolkit
+      - g++-4.8
+      - libgmp-dev
+      - happy-1.19.5
+      - alex-3.1.7
 
 matrix:
   fast_finish: true
   include:
     - env: GHC=8.0.2 CABAL=1.24
       compiler: "GHC 8.0"
-      addons:
-        apt:
-          sources:
-            - hvr-ghc
-          packages:
-            - libgmp-dev
-            - cabal-install-1.24
-            - happy-1.19.5
-            - alex-3.1.4
-
+      addons: { apt: { sources: [ *apt_sources ], packages: [ *apt_packages, cabal-install-1.24] }}
 
 before_install:
   - export PATH=/opt/cabal/$CABAL/bin:/opt/alex/3.1.4/bin:/opt/happy/1.19.5/bin:$PATH
-
-  # cabal
-  - travis_retry cabal update
-  - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
-
-  # stack
-  - mkdir $HOME/bin
-  - export PATH=$HOME/bin:$PATH
-  - travis_retry curl -L "https://www.stackage.org/stack/linux-x86_64" | gunzip | tar -x
-  - mv stack-*/stack $HOME/bin
-  - travis_retry stack setup
-  - travis_retry stack install hscolour
+  - source .travis/install-stack.sh
+  - source .travis/update-ghc-settings.sh
 
 install:
   - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
@@ -43,7 +40,7 @@ install:
   - cabal --version
   - opt --version; true
   - llc --version; true
-  - travis_retry stack build lol-accelerate lol-test lol-bench --only-dependencies --no-terminal --no-haddock-deps -j2
+  - travis_retry stack build lol-accelerate lol-test lol-bench --only-dependencies --no-terminal --no-haddock-deps
 
 script:
   - stack build lol-accelerate --no-terminal --haddock --no-haddock-deps
