@@ -183,7 +183,7 @@ pGInvPow :: forall p r. (Prime p, Ring (Exp r), A.FromIntegral Int r, Elt r) => 
 pGInvPow = pWrap $ \p arr ->
   let
       sl   = A.scanl1 (+) arr
-      sr   = A.scanr (+) zero arr
+      sr   = A.prescanr (+) zero arr
 
       f :: Exp DIM2 -> Exp r -> Exp r -> Exp r
       f ix x y  = let i = A.indexHead ix
@@ -200,7 +200,7 @@ pGInvDec = pWrap $ \p arr ->
   let
       nats = A.generate (A.shape arr) (\ix -> A.fromIntegral (A.indexHead ix) + one)
       sl   = A.fold (+) zero (A.zipWith (*) arr nats)
-      sr   = A.scanr (+) zero arr
+      sr   = A.prescanr (+) zero arr
 
       f :: Exp DIM2 -> Exp r -> Exp r
       f ix x = let Z :. j :. _ = A.unlift ix :: Z :. Exp Int :. Exp Int
