@@ -178,8 +178,8 @@ instance NPZT.C (Exp (ZqBasic q z)) where
 -- --------------------
 
 instance (A.Eq z, Typeable (ZqBasic q)) => A.Eq (ZqBasic q z) where
-  (==) = lift2 (A.==)
-  (/=) = lift2 (A./=)
+  (unlift -> ZqB x) == (unlift -> ZqB y) = x A.== y
+  (unlift -> ZqB x) /= (unlift -> ZqB y) = x A./= y
 
 instance (A.FromIntegral a z, Elt z, Typeable (ZqBasic q)) => A.FromIntegral a (ZqBasic q z) where
   fromIntegral = A.lift . ZqB . A.fromIntegral
