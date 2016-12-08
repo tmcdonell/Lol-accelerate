@@ -1,6 +1,7 @@
 # vim: nospell
 language: minimal
-dist: precise
+dist: trusty
+sudo: required  # not really, but travis is broken
 
 cache:
   directories:
@@ -12,16 +13,15 @@ addons:
     sources: &apt_sources
       - hvr-ghc
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-precise
-      - llvm-toolchain-precise-3.5
-      - llvm-toolchain-precise-3.8
+      - llvm-toolchain-trusty
+      - llvm-toolchain-trusty-3.5
+      - llvm-toolchain-trusty-3.8
     packages: &apt_packages
       - nvidia-cuda-toolkit
       - g++-4.8
       - libgmp-dev
       - happy-1.19.5
       - alex-3.1.7
-      - libc6
 
 matrix:
   fast_finish: true
