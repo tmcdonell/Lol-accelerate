@@ -143,7 +143,7 @@ pGDec = pWrap $ \_ arr ->
       f ix = let Z :. j :. i = A.unlift ix
                  u           = arr A.! ix
                  v           = i A.== 0 A.? ( s A.! A.index1 j
-                                             , negate (arr A.! A.index2 j (i-1)) )
+                                            , negate (arr A.! A.index2 j (i-1)) )
              in
              u + v
   in
