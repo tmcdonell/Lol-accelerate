@@ -21,6 +21,7 @@ addons:
       - libgmp-dev
       - happy-1.19.5
       - alex-3.1.7
+      - libc6
 
 matrix:
   fast_finish: true
