@@ -34,6 +34,7 @@ import Data.Array.Accelerate                                        as A
 -- numeric-prelude-accelerate
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
+import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing ()
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental ()
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
@@ -52,13 +53,15 @@ import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL         as GL
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow        as Pow
 
 -- lol
+import Crypto.Lol.Gadget
 import Crypto.Lol.Cyclotomic.Tensor
-import qualified Crypto.Lol.Prelude as P
-import Crypto.Lol.Prelude                                    as P hiding (FromIntegral)
+import Crypto.Lol.Prelude                                           as P hiding ( FromIntegral )
+import qualified Crypto.Lol.Prelude                                 as P
 
 -- other libraries
 import Control.Applicative
 import Data.Constraint
+import Data.Maybe
 
 import Crypto.Lol.CRTrans
 
@@ -109,14 +112,11 @@ instance Tensor AT where
   -- A tuple of all the operations relating to the CRT basis, in a single
   -- 'Maybe' value for safety. Clients should typically use the corresponding
   -- top-level functions instead.
-  crtFuncs      = (,,,,) <$> ((AT.)  <$> scalarCRT')
+  crtFuncs      = (,,,,) <$> ((AT.)   <$> scalarCRT')
                          <*> (AT.wrap <$> CRT.mulGCRT)
                          <*> (AT.wrap <$> CRT.divGCRT)
                          <*> (AT.wrap <$> CRT.fCRT)
                          <*> (AT.wrap <$> CRT.fCRTInv)
-
-
-                         --_ :: f (r -> b) -> f (Exp r -> b)
 
   -- Sample from the "tweaked" Gaussian error distribution @t*D@ in the decoding
   -- basis, where @D@ has scaled variance @v@.
@@ -164,12 +164,18 @@ instance Tensor AT where
       AT (Arr xs') = toAT xs
       (ls,rs)      = A.unzip xs'
 
+
+scalarCRT' :: (CRTrans mon (Exp r), Fact m, Elt r) => mon (r -> Arr m r)
+scalarCRT' = do
+  f <- CRT.scalar
+  return $ f . A.constant
+
+
 -- missing instances
 -- -----------------
 
--- Mirroring the behaviour of numeric-prelude.fromIntegral which is driven by
--- Ring.fromInteger and the product instance defined in LatticePrelude.
---
+type instance LiftOf (Exp (a,b)) = Exp Int64  -- ~ Integer
+
 instance (FromIntegral a b, FromIntegral a c, Elt b, Elt c) => FromIntegral a (b,c) where
   fromIntegral x = A.lift (A.fromIntegral x, A.fromIntegral x)
 
@@ -180,12 +186,79 @@ instance (Reduce a (Exp b), Reduce a (Exp c), Elt b, Elt c) => Reduce a (Exp (b,
     in
     A.lift (b,c)
 
+instance ( Mod a, ToInteger (ModRep a), Lift' (Exp a), Reduce (Exp Int64) (Exp a), LiftOf (Exp a) ~ Exp Int64, Elt a
+         , Mod b, ToInteger (ModRep b), Lift' (Exp b), Reduce (Exp Int64) (Exp b), LiftOf (Exp b) ~ Exp Int64, Elt b)
+    => Lift' (Exp (a,b)) where
+  lift t =
+    let moda    = toInteger $ proxy modulus (Proxy::Proxy a)
+        modb    = toInteger $ proxy modulus (Proxy::Proxy b)
+        ainv    = fromMaybe (error "Lift' (a,b): moduli not coprime") $ moda `modinv` modb
+        q       = moda P.* modb
+        --
+        (a,b)   = A.unlift t :: (Exp a, Exp b)
+        lifta   = P.lift a
+        liftb   = P.lift b
+        q'      = constant (P.fromInteger q)
+        moda'   = constant (P.fromInteger moda)
+        ainv'   = constant (P.fromInteger ainv)
+        (_,r)   = (moda' P.* (liftb P.- lifta) P.* ainv' P.+ lifta) `divModCent` q'
+    in
+    r -- put in [-q/2, q/2)
 
-scalarCRT' :: (CRTrans mon (Exp r), Fact m, Elt r) => mon (r -> Arr m r)
-scalarCRT' = do
-  f <- CRT.scalar
-  return $ f . A.constant
+-- instance (Mod (Exp a), Mod (Exp b), RealRing (ModRep (Exp a)), RealRing (ModRep (Exp b)), Elt a, Elt b)
+--     => Mod (Exp (a,b)) where
+--   type ModRep (Exp (a,b)) = Exp Int64 -- ~ Integer
+--   modulus = tag $ P.truncate (proxy modulus (Proxy::Proxy (Exp a))) P.*
+--                   P.truncate (proxy modulus (Proxy::Proxy (Exp b)))
 
+instance (Mod a, Mod b, ToInteger (ModRep a), ToInteger (ModRep b), Additive (Exp a), Additive (Exp b), Elt a, Elt b)
+    => Mod (Exp (a,b)) where
+  type ModRep (Exp (a,b)) = Exp Int64 -- ~ Integer
+  modulus = constant . P.fromInteger <$> retag (modulus :: Tagged (a,b) (ModRep (a,b)))
+
+instance (Decompose gad (Exp a), Decompose gad (Exp b), DecompOf (Exp a) ~ DecompOf (Exp b), Elt a, Elt b)
+    => Decompose gad (Exp (a,b)) where
+  type DecompOf (Exp (a,b)) = DecompOf (Exp a)
+  decompose x =
+    let (a,b) = unlift x :: (Exp a, Exp b)
+    in  (P.++) <$> decompose a <*> decompose b
+
+instance (Gadget gad (Exp a), Gadget gad (Exp b), Elt a, Elt b) => Gadget gad (Exp (a, b)) where
+  gadget = (P.++) <$> (P.map (\x -> A.lift ((x,zero) :: (Exp a, Exp b))) <$> gadget)
+                  <*> (P.map (\x -> A.lift ((zero,x) :: (Exp a, Exp b))) <$> gadget)
+
+instance (Mod (Exp b), Field (Exp a), P.Lift (Exp b) (ModRep (Exp b)), Reduce (LiftOf (Exp b)) (Exp a), Elt a, Elt b)
+    => Rescale (Exp (a,b)) (Exp a) where
+  rescale t =
+    let
+        q2val   = proxy modulus (Proxy::Proxy (Exp b))
+        q2inv   = P.recip (reduce q2val)
+        (x1,x2) = A.unlift t  :: (Exp a, Exp b)
+    in
+    q2inv P.* (x1 P.- reduce (P.lift x2))
+
+instance (Mod (Exp a), Field (Exp b), P.Lift (Exp a) (ModRep (Exp a)), Reduce (LiftOf (Exp a)) (Exp b), Elt a, Elt b)
+    => Rescale (Exp (a,b)) (Exp b) where
+  rescale t =
+    let
+        q1val   = proxy modulus (Proxy::Proxy (Exp a))
+        q1inv   = P.recip (reduce q1val)
+        (x1,x2) = A.unlift t  :: (Exp a, Exp b)
+    in
+    q1inv P.* (x2 P.- reduce (P.lift x1))
+
+instance (Ring (Exp a), Mod (Exp b), Reduce (ModRep (Exp b)) (Exp a), Elt a, Elt b)
+    => Rescale (Exp a) (Exp (a,b)) where
+  rescale x = let q2val = reduce $ proxy modulus (Proxy::Proxy (Exp b))
+              in A.lift ( q2val P.* x :: Exp a
+                        , zero        :: Exp b)
+
+instance (Ring (Exp b), Mod (Exp a), Reduce (ModRep (Exp a)) (Exp b), Elt a, Elt b)
+    => Rescale (Exp b) (Exp (a,b)) where
+  rescale x = let q1val = reduce $ proxy modulus (Proxy::Proxy (Exp a))
+              in  A.lift ( zero        :: Exp a
+                         , q1val P.* x :: Exp b)
 
 instance P.FromIntegral (Exp Int64) (Exp Double) where
   fromIntegral' = A.fromIntegral
+

@@ -30,11 +30,12 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               as A
 
 import Crypto.Lol.CRTrans
-import Crypto.Lol.Prelude                                           as LP hiding ( modinv, FromIntegral )
+import Crypto.Lol.Gadget
+import Crypto.Lol.Prelude                                           as LP hiding ( FromIntegral, modinv )
 import Crypto.Lol.Reflects
 import Crypto.Lol.Types.FiniteField
-import Crypto.Lol.Types.ZPP
 import Crypto.Lol.Types.Unsafe.ZqBasic
+import Crypto.Lol.Types.ZPP
 
 import qualified Algebra.ZeroTestable                               as NPZT
 
@@ -95,7 +96,7 @@ mhatInv
 mhatInv =
   constant . LP.snd <$> (crtInfo :: TaggedT m Maybe (CRTInfo (ZqBasic q z)))
 
---constant :: i -> Exp i
+
 -- ZPP instance
 -- ------------
 
@@ -114,19 +115,72 @@ instance ( PPow pp, zq ~ Exp (ZqBasic pp z), PrimeField (ZpOf zq)
                in  A.lift (ZqB z)
 
 
+-- Gadget instances
+-- ----------------
+
+instance (ReflectsTI q z, ToInteger z, Ring (Exp z), Typeable (ZqBasic q))
+    => Decompose TrivGad (Exp (ZqBasic q z)) where
+  type DecompOf (Exp (ZqBasic q z)) = Exp z
+  decompose x = tag [LP.lift x]
+
+instance (ReflectsTI q z, Reflects b z, ToInteger z, RealIntegral (Exp z), IntegralDomain (Exp z), Typeable (ZqBasic q))
+    => Decompose (BaseBGad b) (Exp (ZqBasic q z)) where
+  type DecompOf (Exp (ZqBasic q z)) = Exp z
+  decompose x =
+    let qval    = proxy value (Proxy::Proxy q)
+        bval    = proxy value (Proxy::Proxy b)
+        k       = gadlen bval qval
+        radices = LP.replicate (k-1) (constant bval)
+    in
+    tag $ decomp radices (LP.lift x)
+
+gadlen :: RealIntegral z => z -> z -> Int
+gadlen _ q | isZero q = 0
+gadlen b q            = 1 LP.+ gadlen b (q `LP.div` b)
+
+instance (Reflects q z, Ring (Exp (ZqBasic q z)))
+    => Gadget TrivGad (Exp (ZqBasic q z)) where
+  gadget = tag [one]
+
+instance (ReflectsTI q z, Reflects b z, ToInteger z, Ring (Exp z), Typeable (ZqBasic q))
+    => Gadget (BaseBGad b) (Exp (ZqBasic q z)) where
+  gadget = fmap constant <$> gadget
+
+
 -- Lattice prelude instances
 -- -------------------------
 
 type instance LiftOf (Exp (ZqBasic p z)) = Exp z
 
-instance (ReflectsTI q z, Ring (Exp z), Typeable (ZqBasic q)) => Lift' (Exp (ZqBasic q z)) where
+instance (ReflectsTI q z, Ring (Exp z), Typeable (ZqBasic q))
+    => Lift' (Exp (ZqBasic q z)) where
   lift = decode'
 
-instance (ReflectsTI q z, Additive (Exp z), Typeable (ZqBasic q)) => Reduce (Exp z) (Exp (ZqBasic q z)) where
+instance (ReflectsTI q z, Additive (Exp z), Typeable (ZqBasic q))
+    => Reduce (Exp z) (Exp (ZqBasic q z)) where
   reduce = reduce'
 
-instance (ReflectsTI q z, ToInteger z, Enum z, Typeable (ZqBasic q)) => Enumerable (Exp (ZqBasic q z)) where
+instance (ReflectsTI q z, ToInteger z, Enum z, Typeable (ZqBasic q))
+    => Enumerable (Exp (ZqBasic q z)) where
   values = LP.map A.constant values
+
+instance ( IntegralDomain (Exp z)
+         , ReflectsTI q  z, Typeable (ZqBasic q)
+         , ReflectsTI q' z, Typeable (ZqBasic q')
+         )
+    => Rescale (Exp (ZqBasic q z)) (Exp (ZqBasic q' z)) where
+  rescale x =
+    let qval      = proxy modulus (Proxy :: Proxy (Exp (ZqBasic q  z)))
+        q'val     = proxy modulus (Proxy :: Proxy (Exp (ZqBasic q' z)))
+        (quot',_) = divModCent (q'val * LP.lift x) qval
+    in
+    A.lift (ZqB (quot' `LP.mod` q'val))
+    -- TLM: default instance goes via toInteger -> Ring.fromInteger. This should
+    -- be equivalent (as long as the type z can hold the value q')
+
+instance (ReflectsTI q z, Additive (Exp z), Typeable (ZqBasic q)) => Mod (Exp (ZqBasic q z)) where
+  type ModRep (Exp (ZqBasic q z)) = Exp z
+  modulus = constant <$> retag (value :: Tagged q z)
 
 
 -- Numeric prelude instances
@@ -164,10 +218,12 @@ instance (ReflectsTI q z, ToInteger z, PID (Exp z), Typeable (ZqBasic q))
             in
             A.lift (ZqB (z `modinv` q))
 
-instance (Field (Exp (ZqBasic q z)), Typeable (ZqBasic q), ReflectsTI q z, ToInteger z, Ring (Exp z)) => IntegralDomain.C (Exp (ZqBasic q z)) where
+instance (Field (Exp (ZqBasic q z)), Typeable (ZqBasic q), ReflectsTI q z, ToInteger z, Ring (Exp z))
+    => IntegralDomain.C (Exp (ZqBasic q z)) where
   divMod a b = (a LP./ b, zero)
 
-instance (ZeroTestable.C (Exp z), Elt z, Typeable (ZqBasic q)) => ZeroTestable.C (Exp (ZqBasic q z)) where
+instance (ZeroTestable.C (Exp z), Elt z, Typeable (ZqBasic q))
+    => ZeroTestable.C (Exp (ZqBasic q z)) where
   isZero (unlift -> ZqB z :: ZqBasic q (Exp z)) = ZeroTestable.isZero z
 
 instance NPZT.C (Exp (ZqBasic q z)) where
@@ -181,7 +237,8 @@ instance (A.Eq z, Typeable (ZqBasic q)) => A.Eq (ZqBasic q z) where
   (unlift -> ZqB x) == (unlift -> ZqB y) = x A.== y
   (unlift -> ZqB x) /= (unlift -> ZqB y) = x A./= y
 
-instance (A.FromIntegral a z, Elt z, Typeable (ZqBasic q)) => A.FromIntegral a (ZqBasic q z) where
+instance (A.FromIntegral a z, Elt z, Typeable (ZqBasic q))
+    => A.FromIntegral a (ZqBasic q z) where
   fromIntegral = A.lift . ZqB . A.fromIntegral
 
 -- instance (Additive.C (Exp (ZqBasic q z)), Ring.C (Exp (ZqBasic q z)), Field.C (Exp (ZqBasic q z)), Typeable (ZqBasic q))
