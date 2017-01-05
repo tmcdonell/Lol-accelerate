@@ -14,10 +14,13 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
   where
 
 import Data.Label
+import Data.List
 import System.Console.GetOpt
-import Prelude                                          as P
+import System.Environment
+import System.IO.Unsafe
+import Text.PrettyPrint
 
-import Data.Array.Accelerate
+import Data.Array.Accelerate                            ( Acc, Arrays )
 import qualified Data.Array.Accelerate.Interpreter      as Interp
 #ifdef ACCELERATE_CUDA_BACKEND
 import qualified Data.Array.Accelerate.CUDA             as CUDA
@@ -42,31 +45,21 @@ data Backend = Interpreter
 #ifdef ACCELERATE_LLVM_PTX_BACKEND
              | PTX
 #endif
-  deriving (P.Eq, P.Bounded)
+  deriving (Eq, Enum, Bounded)
 
 -- The choice of show instance is important because this will be used to
 -- generate the command line flag.
 --
 instance Show Backend where
   show Interpreter      = "interpreter"
-#ifdef ACCELERATE_CUDA_BACKEND
-  show CUDA             = "cuda"
-#endif
 #ifdef ACCELERATE_LLVM_NATIVE_BACKEND
   show CPU              = "llvm-cpu"
 #endif
 #ifdef ACCELERATE_LLVM_PTX_BACKEND
-  show PTX              = "llvm-gpu"
+  show PTX              = "llvm-ptx"
 #endif
-
--- The default backend to use. Currently the only complete accelerated backend
--- is CUDA, so default to that if it is available.
---
-defaultBackend :: Backend
 #ifdef ACCELERATE_CUDA_BACKEND
-defaultBackend = CUDA
-#else
-defaultBackend = maxBound
+  show CUDA             = "cuda"
 #endif
 
 -- The set of available backnds. This will be used for both the command line
@@ -94,6 +87,36 @@ availableBackends optBackend =
 #endif
   ]
 
+
+defaultBackend :: Backend
+defaultBackend =
+  case maxBound of
+    Interpreter -> Interpreter
+    _           -> succ Interpreter
+
+{-# NOINLINE theBackend #-}
+theBackend :: Backend
+theBackend = unsafePerformIO $ do
+  mb <- lookupEnv "LOL_ACCELERATE_BACKEND"
+  case mb of
+    Nothing   -> return defaultBackend
+    Just this ->
+      case filter (\backend -> this `isPrefixOf` show backend) [minBound .. maxBound] of
+        []        -> unknown
+        [backend] -> return backend
+        alts      -> case find (\backend -> this == show backend) alts of
+                       Just backend -> return backend
+                       Nothing      -> ambiguous alts
+      where
+        unknown         = error . render $ text "lol-accelerate: Unknown backend:" <+> quotes (text this)
+        ambiguous alts  = error . render $
+          vcat [ text "lol-accelerate: Ambiguous backend:" <+> quotes (text this)
+               , text ""
+               , text "Did you mean one of these?"
+               , nest 4 $ vcat (map (text . show) alts)
+               ]
+
+
 -- | Execute an Accelerate program
 --
 -- TODO: How to select which backend to use? We might need to use an environment
@@ -101,12 +124,12 @@ availableBackends optBackend =
 --       (top-level) point at which we execute the entire Lol computation.
 --
 run :: Arrays a => Acc a -> a
-run = runWith defaultBackend
+run = runWith theBackend
 
 -- | Execute an Accelerate program of one argument
 --
 run1 :: (Arrays a, Arrays b) => (Acc a -> Acc b) -> a -> b
-run1 = run1With defaultBackend
+run1 = run1With theBackend
 
 
 -- | Execute Accelerate programs using the selected backend
