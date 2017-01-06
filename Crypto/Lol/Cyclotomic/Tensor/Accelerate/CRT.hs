@@ -60,7 +60,7 @@ scalar =
   let n  = proxy totientFact (Proxy :: Proxy m)
       sh = A.constant (Z :. n)
   in
-  return $ Arr . A.fill sh -- . A.constant
+  return $ Arr . A.fill sh
 
 
 -- | Embeds an array in the CRT basis of the m`th cyclotomic ring into an array
