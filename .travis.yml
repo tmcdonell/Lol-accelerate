@@ -28,7 +28,7 @@ matrix:
   include:
     - env: GHC=8.0.2 CABAL=1.24
       compiler: "GHC 8.0"
-      addons: { apt: { sources: [ *apt_sources ], packages: [ *apt_packages, cabal-install-1.24] }}
+      addons: { apt: { sources: [ *apt_sources ], packages: [ *apt_packages, cabal-install-1.24 ] }}
 
 before_install:
   - export PATH=/opt/cabal/$CABAL/bin:/opt/alex/3.1.4/bin:/opt/happy/1.19.5/bin:$PATH
@@ -41,11 +41,9 @@ install:
   - cabal --version
   - opt --version; true
   - llc --version; true
-  - travis_retry stack build lol-accelerate lol-test lol-bench --only-dependencies --no-terminal --no-haddock-deps
+  - travis_retry stack build --test --bench --only-dependencies --no-terminal --no-haddock-deps
 
 script:
-  - stack build lol-accelerate --no-terminal --haddock --no-haddock-deps
-  - stack build lol-test --no-terminal
-  - stack build lol-bench --no-terminal --flag lol-bench:-opt
-  - stack exec lol-test -- --select-tests="AT" --plain
+  - stack build --test --no-run-tests --bench --no-run-benchmarks --no-terminal --haddock --no-haddock-deps
+  - stack test
 
