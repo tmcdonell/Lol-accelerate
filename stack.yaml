@@ -2,7 +2,8 @@
 # vim: nospell
 
 resolver: lts-7.0
-compiler: ghc-8.0.1.20161117
+# compiler: ghc-8.0.1.20161117    # ghc-8.0.2-rc1
+compiler: ghc-8.0.1.20161213    # ghc-8.0.2-rc2
 compiler-check: match-exact
 setup-info:
   ghc:
@@ -11,23 +12,37 @@ setup-info:
         url: http://downloads.haskell.org/~ghc/8.0.2-rc1/ghc-8.0.1.20161117-x86_64-deb8-linux.tar.xz
         content-length: 112047972
         sha1: 6a6e4c9c53c71cc84b6966a9f61948542fd2f15a
+      8.0.1.20161213:
+        url: https://downloads.haskell.org/~ghc/8.0.2-rc2/ghc-8.0.1.20161213-x86_64-deb8-linux.tar.xz
+        content-length: 111894616
+        sha1: 8c7ebec9bf96c0a37b4b27ebcd5372844cb61755
+
     macosx:
       8.0.1.20161117:
         url: https://downloads.haskell.org/~ghc/8.0.2-rc1/ghc-8.0.1.20161117-x86_64-apple-darwin.tar.xz
         content-length: 113379688
         sha1: 53ed03d986a49ea680c291540ce44ce469514d7c
+      8.0.1.20161213:
+        url: https://downloads.haskell.org/~ghc/8.0.2-rc2/ghc-8.0.1.20161213-x86_64-apple-darwin.tar.xz
+        content-length: 113359104
+        sha1: d87048467786a7b9667aef0a78d7ffd8779425b2
+
     windows64:
       8.0.1.20161117:
         url: https://downloads.haskell.org/~ghc/8.0.2-rc1/ghc-8.0.1.20161117-x86_64-unknown-mingw32.tar.xz
         content-length: 155652048
         sha1: 74118dd8fd8b5e4c69b25df1644273fbe13177c7
+      8.0.1.20161213:
+        url: https://downloads.haskell.org/~ghc/8.0.2-rc2/ghc-8.0.1.20161213-x86_64-unknown-mingw32.tar.xz
+        content-length: 155494112
+        sha1: a536228cb7265aef19b2842a2c81cfe9ca372e45
 
 packages:
 - '.'
 
 - location:
     git:    https://github.com/AccelerateHS/accelerate.git
-    commit: da996ecc5403234b5adc18ee6f30fa8d5a4d4022
+    commit: 3fb349fc9fb4ed957ca847941afbe86cb5fa457b
   extra-dep: true
 
 - location:
@@ -42,7 +57,7 @@ packages:
 
 - location:
     git:    https://github.com/AccelerateHS/accelerate-llvm.git
-    commit: bc4fa35bf5c6502869b1c30e2ebabc0691e0f300
+    commit: 623b04949a873fe15ffa9d10eaf83b992b860f4b
   extra-dep: true
   subdirs:
     - 'accelerate-llvm'
@@ -55,20 +70,33 @@ packages:
   extra-dep: true
 
 - location:
-    git:    https://github.com/cpeikert/Lol.git
-    commit: 5a5e530fedbdde00f55da07c29620ac8cb82e168
+    git:    https://github.com/tmcdonell/Lol.git
+    commit: dab30e27bf0931137ca76d7e140c6043b7101cc3
   extra-dep: true
   subdirs:
     - 'lol'
+    - 'lol-apps'
     - 'lol-benches'
+    - 'lol-cpp'
+    - 'lol-repa'
     - 'lol-tests'
+
+- location:
+    git:    https://github.com/bscarlet/llvm-general.git
+    # commit: 730ceeee3776a1f62bc874ec166d277124a2294b  # 3.5
+    # commit: 529f9bf117b5ffd1ccf7ebeb679a97b3b1c67938  # 3.8
+    commit: ec1ad5bd2112e7f64dbb43441b5e2075cf6ad8e7  # 3.9
+  extra-dep: true
+  subdirs:
+    - 'llvm-general'
+    - 'llvm-general-pure'
 
 extra-deps:
 - 'chaselev-deque-0.5.0.5'
-- 'cuda-0.7.5.1'
+- 'cuda-0.7.5.2'
 - 'libffi-0.1'
-- 'llvm-general-3.5.1.2'
-- 'llvm-general-pure-3.5.1.0'
+# - 'llvm-general-3.5.1.2'
+# - 'llvm-general-pure-3.5.1.0'
 - 'non-negative-0.1.1'
 - 'numeric-prelude-0.4.2'
 - 'tagged-transformer-0.8'
