@@ -84,8 +84,8 @@ packages:
 - location:
     git:    https://github.com/bscarlet/llvm-general.git
     # commit: 730ceeee3776a1f62bc874ec166d277124a2294b  # 3.5
-    # commit: 529f9bf117b5ffd1ccf7ebeb679a97b3b1c67938  # 3.8
-    commit: ec1ad5bd2112e7f64dbb43441b5e2075cf6ad8e7  # 3.9
+    commit: 529f9bf117b5ffd1ccf7ebeb679a97b3b1c67938  # 3.8
+    # commit: ec1ad5bd2112e7f64dbb43441b5e2075cf6ad8e7  # 3.9
   extra-dep: true
   subdirs:
     - 'llvm-general'
