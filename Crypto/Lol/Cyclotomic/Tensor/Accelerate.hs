@@ -262,3 +262,14 @@ instance (Ring (Exp b), Mod (Exp a), Reduce (ModRep (Exp a)) (Exp b), Elt a, Elt
 instance P.FromIntegral (Exp Int64) (Exp Double) where
   fromIntegral' = A.fromIntegral
 
+instance P.Round (Exp Double) (Exp Int64) where
+  round x =
+    let n = toFloating (A.truncate x :: Exp Int64)
+        f = x A.- n
+    in
+    A.truncate (n A.+ 2 A.* f)
+
+  roundMult i r =
+    i A.== one ? ( P.round r
+                 , P.round (r A./ A.fromIntegral i) A.* i )
+
