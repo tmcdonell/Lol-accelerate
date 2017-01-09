@@ -45,5 +45,5 @@ install:
 
 script:
   - stack build --test --no-run-tests --bench --no-run-benchmarks --no-terminal --haddock --no-haddock-deps
-  - stack test
+  - stack test --test-arguments="--plain"
 
