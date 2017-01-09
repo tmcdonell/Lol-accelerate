@@ -54,7 +54,7 @@ main = diagnosticMain
 
 tableMain :: IO ()
 tableMain = do
-  let opts = (T.defaultOpts "UCyc"){T.benches=bs}
+  let opts = (T.defaultOpts $ Just "UCyc"){T.benches=bs}
   g1 <- defaultBenches (Proxy::Proxy AT)
   mapM_ (T.prettyBenches opts) g1
 
