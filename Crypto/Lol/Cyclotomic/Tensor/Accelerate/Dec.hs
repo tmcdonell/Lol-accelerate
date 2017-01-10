@@ -108,7 +108,7 @@ pE =
                     sqrt 2 * q
   in
   tag $ if pval == 2
-           then Id 2
+           then Id 1
            else trans (pval-1, mulMat mat)
 
 
