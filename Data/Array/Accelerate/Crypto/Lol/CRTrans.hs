@@ -68,7 +68,7 @@ crtInfoC =
       mhat = let (d,m) = LP.divMod mval 2 -- this is @valueHat mval@ lifted to Exp
              in  m A.== 0 ? ( d, mval )
   in
-  return ( omegaPowC mhat
+  return ( omegaPowC mval
          , LP.recip (A.fromReal (A.fromIntegral mhat))
          )
 
