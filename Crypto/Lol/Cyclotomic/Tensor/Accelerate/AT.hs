@@ -102,7 +102,7 @@ instance Fact m => Foldable (AT m) where
   foldMap = foldMapDefault
 
 instance Fact m => Traversable (AT m) where
-  traverse f r@(AT _) = traverse f $ toZV r
+  traverse f r@AT{} = traverse f (toZV r)
   traverse f (ZV v) = ZV <$> traverse f v
 
 
