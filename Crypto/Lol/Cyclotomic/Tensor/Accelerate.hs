@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
 {-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
@@ -29,7 +30,8 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate (
 ) where
 
 -- accelerate
-import Data.Array.Accelerate                                        as A
+import Data.Array.Accelerate                                        as A hiding ((++), (==), lift)
+import qualified Data.Array.Accelerate                              as A
 
 -- numeric-prelude-accelerate
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
@@ -53,17 +55,32 @@ import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL         as GL
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow        as Pow
 
 -- lol
-import Crypto.Lol.Gadget
+import Crypto.Lol.CRTrans
 import Crypto.Lol.Cyclotomic.Tensor
+import Crypto.Lol.Gadget
 import Crypto.Lol.Prelude                                           as P hiding ( FromIntegral )
 import qualified Crypto.Lol.Prelude                                 as P
+import Crypto.Lol.Reflects
+import Crypto.Lol.Types.IZipVector
+import Crypto.Lol.Types.Proto
+import Crypto.Lol.Types.Unsafe.RRq
+import Crypto.Lol.Types.Unsafe.ZqBasic
+
+import Crypto.Proto.Lol.Kq1
+import Crypto.Proto.Lol.KqProduct
+import Crypto.Proto.Lol.R
+import Crypto.Proto.Lol.Rq1
+import Crypto.Proto.Lol.RqProduct
 
 -- other libraries
 import Control.Applicative
+import Control.Monad
+import Control.Monad.Except hiding (lift)
 import Data.Constraint
+import Data.Foldable as F
 import Data.Maybe
-
-import Crypto.Lol.CRTrans
+import qualified Data.Sequence as S (fromList, singleton)
+import qualified Data.Vector as V
 
 
 -- | Accelerate-backed Tensor instance
@@ -273,3 +290,110 @@ instance P.Round (Exp Double) (Exp Int64) where
     i A.== one ? ( P.round r
                  , P.round (r A./ A.fromIntegral i) A.* i )
 
+
+instance (Fact m) => Protoable (AT m Int64) where
+  type ProtoType (AT m Int64) = R
+
+  toProto x@(AT _) = toProto $ toZV x
+  toProto (ZV xs') =
+    let m = P.fromIntegral $ proxy valueFact (Proxy::Proxy m)
+        xs = S.fromList $ V.toList $ unIZipVector xs'
+    in R{..}
+
+  fromProto R{..} = do
+    let m' = proxy valueFact (Proxy::Proxy m) :: Int
+        n = proxy totientFact (Proxy::Proxy m)
+        ys' = A.fromList (Z:.n) $ F.toList xs
+        len = F.length xs
+    unless (m' == P.fromIntegral m) $ throwError $
+      "An error occurred while reading the proto type for CT.\n\
+      \Expected m=" ++ show m' ++ ", got " ++ show m
+    unless (len == n) $ throwError $
+      "An error occurred while reading the proto type for CT.\n\
+      \Expected n=" ++ show n  ++ ", got " ++ show len
+    return $ AT $ Arr $ A.use ys'
+
+instance (Fact m, Reflects q Int64, Elt (ZqBasic q Int64)) => Protoable (AT m (ZqBasic q Int64)) where
+  type ProtoType (AT m (ZqBasic q Int64)) = RqProduct
+
+  toProto x@(AT _) = toProto $ toZV x
+  toProto (ZV xs') =
+    let m = P.fromIntegral $ proxy valueFact (Proxy::Proxy m)
+        q = P.fromIntegral (proxy value (Proxy::Proxy q) :: Int64)
+        xs = S.fromList $ V.toList $ V.map lift $ unIZipVector xs'
+    in RqProduct $ S.singleton Rq1{..}
+
+  fromProto (RqProduct xs') = do
+    let rqlist = F.toList xs'
+        m' = proxy valueFact (Proxy::Proxy m) :: Int
+        q' = proxy value (Proxy::Proxy q) :: Int64
+        n = proxy totientFact (Proxy::Proxy m)
+    unless (F.length rqlist == 1) $ throwError $
+      "An error occurred while reading the proto type for A.\n\
+      \Expected a list of one Rq, but list has length " ++ show (F.length rqlist)
+    let [Rq1{..}] = rqlist
+        ys' = A.fromList (Z:.n) $ P.map reduce $ F.toList xs
+        len = F.length xs
+    unless (m' == P.fromIntegral m) $ throwError $
+      "An error occurred while reading the proto type for AT.\n\
+      \Expected m=" ++ show m' ++ ", got " ++ show m
+    unless (len == n) $ throwError $
+      "An error occurred while reading the proto type for AT.\n\
+      \Expected n=" ++ show n  ++ ", got " ++ show len
+    unless (P.fromIntegral q' == q) $ throwError $
+      "An error occurred while reading the proto type for AT.\n\
+      \Expected q=" ++ show q' ++ ", got " ++ show q
+    return $ AT $ Arr $ A.use ys'
+{-
+instance (Protoable (AT m (ZqBasic q Int64)),
+          ProtoType (AT m (ZqBasic q Int64)) ~ RqProduct,
+          Protoable (AT m b), ProtoType (AT m b) ~ RqProduct,
+          Fact m, Reflects q Int64, TElt AT b, TElt AT (ZqBasic q Int64, b))
+  => Protoable (AT m (ZqBasic q Int64,b)) where
+  type ProtoType (AT m (ZqBasic q Int64, b)) = RqProduct
+
+  toProto = toProtoProduct RqProduct rqlist
+  fromProto = fromProtoNestRight RqProduct rqlist
+-}
+instance (Fact m, Reflects q Double, Elt (RRq q Double)) => Protoable (AT m (RRq q Double)) where
+  type ProtoType (AT m (RRq q Double)) = KqProduct
+
+  toProto x@(AT _) = toProto $ toZV x
+  toProto (ZV xs') =
+    let m = P.fromIntegral $ proxy valueFact (Proxy::Proxy m)
+        q = P.round (proxy value (Proxy::Proxy q) :: Double)
+        xs = S.fromList $ V.toList $ V.map lift $ unIZipVector xs'
+    in KqProduct $ S.singleton Kq1{..}
+
+  fromProto (KqProduct xs') = do
+    let rqlist = F.toList xs'
+        m' = proxy valueFact (Proxy::Proxy m) :: Int
+        q' = P.round (proxy value (Proxy::Proxy q) :: Double)
+        n = proxy totientFact (Proxy::Proxy m)
+    unless (F.length rqlist == 1) $ throwError $
+      "An error occurred while reading the proto type for AT.\n\
+      \Expected a list of one Rq, but list has length " ++ show (F.length rqlist)
+    let [Kq1{..}] = rqlist
+        ys' = A.fromList (Z:.n) $ P.map reduce $ F.toList xs
+        len = F.length xs
+    unless (m' == P.fromIntegral m) $ throwError $
+      "An error occurred while reading the proto type for AT.\n\
+      \Expected m=" ++ show m' ++ ", got " ++ show m
+    unless (len == n) $ throwError $
+      "An error occurred while reading the proto type for AT.\n\
+      \Expected n=" ++ show n  ++ ", got " ++ show len
+    unless (q' == q) $ throwError $
+      "An error occurred while reading the proto type for AT.\n\
+      \Expected q=" ++ show q' ++ ", got " ++ show q
+    return $ AT $ Arr $ A.use ys'
+{-
+instance (Protoable (AT m (RRq q Double)),
+          ProtoType (AT m (RRq q Double)) ~ KqProduct,
+          Protoable (AT m b), ProtoType (AT m b) ~ KqProduct,
+          Fact m, Reflects q Double, TElt AT b, TElt AT (RRq q Double, b))
+  => Protoable (AT m (RRq q Double,b)) where
+  type ProtoType (AT m (RRq q Double, b)) = KqProduct
+
+  toProto = toProtoProduct KqProduct kqlist
+  fromProto = fromProtoNestRight KqProduct kqlist
+-}
