@@ -2,40 +2,7 @@
 # vim: nospell
 
 resolver: lts-7.0
-# compiler: ghc-8.0.1.20161117    # ghc-8.0.2-rc1
-compiler: ghc-8.0.1.20161213    # ghc-8.0.2-rc2
-compiler-check: match-exact
-setup-info:
-  ghc:
-    linux64:
-      8.0.1.20161117:
-        url: http://downloads.haskell.org/~ghc/8.0.2-rc1/ghc-8.0.1.20161117-x86_64-deb8-linux.tar.xz
-        content-length: 112047972
-        sha1: 6a6e4c9c53c71cc84b6966a9f61948542fd2f15a
-      8.0.1.20161213:
-        url: https://downloads.haskell.org/~ghc/8.0.2-rc2/ghc-8.0.1.20161213-x86_64-deb8-linux.tar.xz
-        content-length: 111894616
-        sha1: 8c7ebec9bf96c0a37b4b27ebcd5372844cb61755
-
-    macosx:
-      8.0.1.20161117:
-        url: https://downloads.haskell.org/~ghc/8.0.2-rc1/ghc-8.0.1.20161117-x86_64-apple-darwin.tar.xz
-        content-length: 113379688
-        sha1: 53ed03d986a49ea680c291540ce44ce469514d7c
-      8.0.1.20161213:
-        url: https://downloads.haskell.org/~ghc/8.0.2-rc2/ghc-8.0.1.20161213-x86_64-apple-darwin.tar.xz
-        content-length: 113359104
-        sha1: d87048467786a7b9667aef0a78d7ffd8779425b2
-
-    windows64:
-      8.0.1.20161117:
-        url: https://downloads.haskell.org/~ghc/8.0.2-rc1/ghc-8.0.1.20161117-x86_64-unknown-mingw32.tar.xz
-        content-length: 155652048
-        sha1: 74118dd8fd8b5e4c69b25df1644273fbe13177c7
-      8.0.1.20161213:
-        url: https://downloads.haskell.org/~ghc/8.0.2-rc2/ghc-8.0.1.20161213-x86_64-unknown-mingw32.tar.xz
-        content-length: 155494112
-        sha1: a536228cb7265aef19b2842a2c81cfe9ca372e45
+compiler: ghc-8.0.2
 
 packages:
 - '.'
