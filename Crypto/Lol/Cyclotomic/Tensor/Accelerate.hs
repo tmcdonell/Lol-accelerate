@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE ViewPatterns          #-}
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate
@@ -31,11 +32,12 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate (
 
 -- accelerate
 import Data.Array.Accelerate                                        as A hiding ((++), (==), lift)
+import Data.Array.Accelerate.Data.BigInt
 import qualified Data.Array.Accelerate                              as A
 
 -- numeric-prelude-accelerate
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
-import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
+import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain
 import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing ()
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental ()
@@ -67,6 +69,7 @@ import Crypto.Lol.Types.Proto
 import Control.Applicative
 import Data.Constraint
 import Data.Maybe
+import qualified Prelude
 
 
 -- | Accelerate-backed Tensor instance
@@ -199,14 +202,16 @@ instance ( Mod a, ToInteger (ModRep a), Lift' (Exp a), Reduce (Exp Int64) (Exp a
         q       = moda P.* modb
         --
         (a,b)   = A.unlift t :: (Exp a, Exp b)
-        lifta   = P.lift a
-        liftb   = P.lift b
+        lifta   = A.fromIntegral (P.lift a) :: Exp Int128
+        liftb   = A.fromIntegral (P.lift b) :: Exp Int128
         q'      = constant (P.fromInteger q)
         moda'   = constant (P.fromInteger moda)
         ainv'   = constant (P.fromInteger ainv)
+        -- This intermediate computation must be done with 128-bits, since
+        -- multiplying by the moduli can overflow Int64
         (_,r)   = (moda' P.* (liftb P.- lifta) P.* ainv' P.+ lifta) `divModCent` q'
     in
-    r -- put in [-q/2, q/2)
+    A.fromIntegral r -- put in [-q/2, q/2)
 
 -- instance (Mod (Exp a), Mod (Exp b), RealRing (ModRep (Exp a)), RealRing (ModRep (Exp b)), Elt a, Elt b)
 --     => Mod (Exp (a,b)) where
@@ -279,7 +284,31 @@ instance P.Round (Exp Double) (Exp Int64) where
 instance (Protoable (IZipVector m r), Fact m, Elt r) => Protoable (AT m r) where
   type ProtoType (AT m r) = ProtoType (IZipVector m r)
 
-  toProto x@(AT _) = toProto $ toZV x
+  toProto x@AT{} = toProto $ toZV x
   toProto (ZV x) = toProto x
 
   fromProto x = toAT <$> ZV <$> fromProto x
+
+instance Ring.C Int128 where
+  (*)         = (Prelude.*)
+  fromInteger = Prelude.fromInteger
+
+instance Additive.C Int128 where
+  zero   = 0
+  (+)    = (Prelude.+)
+  (-)    = (Prelude.-)
+  negate = Prelude.negate
+
+instance Ring.C (Exp Int128) where
+  (*)         = (Prelude.*)
+  fromInteger = Prelude.fromInteger
+
+instance Additive.C (Exp Int128) where
+  zero   = 0
+  (+)    = (Prelude.+)
+  (-)    = (Prelude.-)
+  negate = Prelude.negate
+
+instance IntegralDomain.C (Exp Int128) where
+  divMod = Prelude.divMod
+
