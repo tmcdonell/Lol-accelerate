@@ -95,7 +95,7 @@ flags:
   accelerate-llvm-ptx:
     debug: true
     nvvm:  false
-  acclerate-bignum:
+  accelerate-bignum:
     llvm-cpu: true
     llvm-ptx: false
 
