@@ -92,7 +92,7 @@ magnitudeSqr c = (real c ^ 2) + (imag c ^ 2)
 -- | Scale a complex number by a real number
 --
 scale :: (Ring.C (Exp a), Elt a) => Exp a -> Exp (Complex a) -> Exp (Complex a)
-scale r c = lift $ Complex (r * real c NP.+: r * imag c)
+scale r c = lift $ Complex' (r * real c NP.+: r * imag c)
 
 
 -- Helpers to convert between the Lol / numeric-prelude representation
@@ -101,7 +101,7 @@ unwrap :: Elt a => Exp (Complex a) -> Exp (Complex.T a)
 unwrap z = real z Complex.+: imag z
 
 wrap :: forall a. Elt a => Exp (Complex.T a) -> Exp (Complex a)
-wrap z = lift $ Complex (unlift z :: Complex.T (Exp a))
+wrap z = lift $ Complex' (unlift z :: Complex.T (Exp a))
 
 liftC :: forall a. Elt a => (Exp (Complex.T a) -> Exp (Complex.T a)) -> Exp (Complex a) -> Exp (Complex a)
 liftC f = wrap . f . unwrap
@@ -114,18 +114,18 @@ type instance EltRepr (Complex a) = EltRepr (a, a)
 
 instance Elt a => Elt (Complex a) where
   eltType _             = eltType (undefined :: (a,a))
-  toElt p               = let (a, b) = toElt p in Complex (a NP.+: b)
-  fromElt (Complex c)   = fromElt (NP.real c, NP.imag c)
+  toElt p               = let (a, b) = toElt p in Complex' (a NP.+: b)
+  fromElt (Complex' c)   = fromElt (NP.real c, NP.imag c)
 
 instance cst a => IsProduct cst (Complex a) where
   type ProdRepr (Complex a) = ProdRepr (a, a)
-  fromProd cst (Complex c) = fromProd cst (NP.real c, NP.imag c)
-  toProd cst p          = let (x, y) = toProd cst p in Complex (x NP.+: y)
+  fromProd cst (Complex' c) = fromProd cst (NP.real c, NP.imag c)
+  toProd cst p          = let (x, y) = toProd cst p in Complex' (x NP.+: y)
   prod cst _            = prod cst (undefined :: (a, a))
 
 instance (Lift Exp a, Elt (Plain a)) => Lift Exp (Complex a) where
   type Plain (Complex a) = Complex (Plain a)
-  lift (Complex c)       = Exp . Tuple $ NilTup `SnocTup` lift (NP.real c)
+  lift (Complex' c)       = Exp . Tuple $ NilTup `SnocTup` lift (NP.real c)
                                                 `SnocTup` lift (NP.imag c)
 
 instance Elt a => Unlift Exp (Complex (Exp a)) where
@@ -133,7 +133,7 @@ instance Elt a => Unlift Exp (Complex (Exp a)) where
     let x = Exp $ SuccTupIdx ZeroTupIdx `Prj` e
         y = Exp $ ZeroTupIdx `Prj` e
     in
-    Complex (x NP.+: y)
+    Complex' (x NP.+: y)
 
 instance A.Eq a => A.Eq (Complex a) where
   x == y = real x == real y && imag x == imag y
