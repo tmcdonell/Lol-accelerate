@@ -35,6 +35,9 @@ flag llvm-ptx
   description: Enable the LLVM backend for NIVDIA GPUs
   default:     False
 
+Flag with-apps
+  Description: When this flag is enabled, all lol-apps tests, benchmarks, and examples are built.
+  Default:     True
 
 library
   default-language:   Haskell2010
@@ -93,10 +96,11 @@ library
         accelerate-llvm-ptx             >= 0.16
 
 
-Benchmark bench-acc
+Benchmark bench-lol-acc
   type:               exitcode-stdio-1.0
   default-language:   Haskell2010
-  main-is:            Main.hs
+  main-is:            BenchLolAccMain.hs
+  ghc-options:        -main-is BenchLolAccMain
   hs-source-dirs:     benchmarks
 
   ghc-options:        -Wall
@@ -115,10 +119,11 @@ Benchmark bench-acc
     lol-accelerate,
     lol-benches
 
-test-suite test-acc
+test-suite test-lol-acc
   type:               exitcode-stdio-1.0
   default-language:   Haskell2010
-  main-is:            Main.hs
+  main-is:            TestLolAccMain.hs
+  ghc-options:        -main-is TestLolAccMain
   hs-source-dirs:     tests
 
   ghc-options:        -Wall
@@ -141,3 +146,85 @@ source-repository head
 
 -- vim: nospell
 
+Benchmark bench-lol-apps-acc
+  type:             exitcode-stdio-1.0
+  default-language: Haskell2010
+  main-is:          BenchAppsCPPMain.hs
+  ghc-options:      -main-is BenchAppsCPPMain
+  if flag(with-apps)
+    cpp-options: -DWITH_APPS
+  hs-source-dirs:   benchmarks
+
+  ghc-options: -O2 -funfolding-creation-threshold=15000 -funfolding-use-threshold=1000
+
+  build-depends:
+    base >= 4.9 && < 4.10,
+    DRBG < 0.6,
+    lol >= 0.6.0.0 && < 0.7,
+    lol-apps >= 0.2.1 && < 0.3,
+    lol-benches >= 0.0.0.3 && < 0.1,
+    lol-accelerate,
+    MonadRandom >= 0.2 && < 0.6
+
+test-suite test-lol-apps-acc
+  type:             exitcode-stdio-1.0
+  default-language: Haskell2010
+  main-is:          TestAppsCPPMain.hs
+  ghc-options:      -main-is TestAppsCPPMain
+  if flag(with-apps)
+    cpp-options: -DWITH_APPS
+  hs-source-dirs:   tests
+  ghc-options:      -threaded -O2
+
+  build-depends:
+    base >= 4.9 && < 4.10,
+    lol >= 0.6.0.0 && < 0.7,
+    lol-apps >= 0.2.1 && < 0.3,
+    lol-accelerate,
+    lol-tests < 0.1,
+    test-framework < 0.9
+
+executable homomprf-acc
+  hs-source-dirs: examples
+  default-language: Haskell2010
+  main-is: HomomPRFAccMain.hs
+  if flag(with-apps)
+    cpp-options: -DWITH_APPS
+  ghc-options: -main-is HomomPRFAccMain
+
+  ghc-options: -threaded -rtsopts -O2
+
+  build-depends:
+    base >= 4.9 && < 4.10,
+    lol-apps >= 0.2.1 && < 0.3,
+    lol-accelerate
+
+executable khprf-acc
+  hs-source-dirs: examples
+  default-language: Haskell2010
+  main-is: KHPRFAccMain.hs
+  if flag(with-apps)
+    cpp-options: -DWITH_APPS
+  ghc-options: -main-is KHPRFAccMain
+
+  ghc-options: -threaded -rtsopts -O2
+
+  build-depends:
+    base >= 4.9 && < 4.10,
+    lol-apps >= 0.2.1 && < 0.3,
+    lol-accelerate
+
+executable symmshe-acc
+  hs-source-dirs:   examples
+  default-language: Haskell2010
+  main-is:          SHEAccMain.hs
+  if flag(with-apps)
+    cpp-options: -DWITH_APPS
+  ghc-options: -main-is SHEAccMain
+
+  ghc-options: -threaded -rtsopts -O2
+
+  build-depends:
+    base >= 4.9 && < 4.10,
+    lol-apps >= 0.2.1 && < 0.3,
+    lol-accelerate

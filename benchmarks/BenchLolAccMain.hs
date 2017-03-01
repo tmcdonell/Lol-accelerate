@@ -1,11 +1,26 @@
+{-|
+Module      : BenchLolAccMain
+Description : Main driver for lol benchmarks with AT.
+Copyright   : (c) Eric Crockett, 2011-2017
+                  Chris Peikert, 2011-2017
+License     : GPL-2
+Maintainer  : ecrockett0@email.com
+Stability   : experimental
+Portability : POSIX
+
+Main driver for lol benchmarks with AT.
+-}
+
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeOperators  #-}
 
+module BenchLolAccMain where
+
 import Crypto.Lol.Benchmarks
 import Crypto.Lol.Benchmarks.Standard
-import Crypto.Lol.Factored
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate
+import Crypto.Lol.Factored
 import qualified Crypto.Lol.Utils.PrettyPrint.Diagnostic as D
 import qualified Crypto.Lol.Utils.PrettyPrint.Table as T
 import Crypto.Random.DRBG
@@ -62,7 +77,7 @@ diagnosticMain :: IO ()
 diagnosticMain = do
   let opts = D.defaultOpts{D.levels=ls, D.benches=bs}
   b1 <- benchGroup "Single Index"
-          [oneIdxBenches (Proxy::Proxy '(F64*F9*F25, Zq 14401)) (Proxy::Proxy AT) (Proxy::Proxy HashDRBG)]
+          [oneIdxBenches (Proxy::Proxy '(F64*F9*F25, Zq 14401)) (Proxy::Proxy CT) (Proxy::Proxy HashDRBG)]
   b2 <- benchGroup "Twace-Embed"
-          [twoIdxBenches (Proxy::Proxy '(F64*F9*F25, F64*F9*F25, Zq 14401)) (Proxy::Proxy AT)]
+          [twoIdxBenches (Proxy::Proxy '(F64*F9*F25, F64*F9*F25, Zq 14401)) (Proxy::Proxy CT)]
   mapM_ (D.prettyBenches opts) [b1,b2]

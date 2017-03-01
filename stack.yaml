@@ -1,8 +1,7 @@
 # For more information, see: http://docs.haskellstack.org/en/stable/yaml_configuration.html
 # vim: nospell
 
-resolver: lts-7.16
-compiler: ghc-8.0.2
+resolver: lts-8.2
 
 packages:
 - '.'
@@ -42,15 +41,13 @@ packages:
   extra-dep: true
 
 - location:
-    git:    https://github.com/tmcdonell/Lol.git
-    commit: b42b21eb926c4662964ac3775d688a71f38ccc75
+    git:    https://github.com/cpeikert/Lol.git
+    commit: 45a1f4d4fbe00228f077da791deef74e5083f18b
   extra-dep: true
   subdirs:
     - 'lol'
     - 'lol-apps'
     - 'lol-benches'
-    - 'lol-cpp'
-    - 'lol-repa'
     - 'lol-tests'
 
 - location:
