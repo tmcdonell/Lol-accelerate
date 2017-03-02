@@ -92,7 +92,9 @@ defaultBackend :: Backend
 defaultBackend =
   case maxBound of
     Interpreter -> Interpreter
+#if defined(ACCELERATE_CUDA_BACKEND) || defined(ACCELERATE_LLVM_NATIVE_BACKEND) || defined(ACCELERATE_LLVM_PTX_BACKEND)
     _           -> succ Interpreter
+#endif
 
 {-# NOINLINE theBackend #-}
 theBackend :: Backend

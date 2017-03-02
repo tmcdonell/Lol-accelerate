@@ -68,7 +68,6 @@ import Crypto.Lol.Types.Proto
 -- other libraries
 import Control.Applicative
 import Data.Constraint
-import Data.Maybe
 import qualified Prelude
 
 
@@ -180,8 +179,6 @@ scalarCRT' = do
 -- missing instances
 -- -----------------
 
-type instance LiftOf (Exp (a,b)) = Exp Int64  -- ~ Integer
-
 instance (FromIntegral a b, FromIntegral a c, Elt b, Elt c) => FromIntegral a (b,c) where
   fromIntegral x = A.lift (A.fromIntegral x, A.fromIntegral x)
 
@@ -191,6 +188,8 @@ instance (Reduce a (Exp b), Reduce a (Exp c), Elt b, Elt c) => Reduce a (Exp (b,
         c = reduce x :: Exp c
     in
     A.lift (b,c)
+{-
+type instance LiftOf (Exp (a,b)) = Exp Int64  -- ~ Integer
 
 instance ( Mod a, ToInteger (ModRep a), Lift' (Exp a), Reduce (Exp Int64) (Exp a), LiftOf (Exp a) ~ Exp Int64, Elt a
          , Mod b, ToInteger (ModRep b), Lift' (Exp b), Reduce (Exp Int64) (Exp b), LiftOf (Exp b) ~ Exp Int64, Elt b)
@@ -212,7 +211,7 @@ instance ( Mod a, ToInteger (ModRep a), Lift' (Exp a), Reduce (Exp Int64) (Exp a
         (_,r)   = (moda' P.* (liftb P.- lifta) P.* ainv' P.+ lifta) `divModCent` q'
     in
     A.fromIntegral r -- put in [-q/2, q/2)
-
+-}
 -- instance (Mod (Exp a), Mod (Exp b), RealRing (ModRep (Exp a)), RealRing (ModRep (Exp b)), Elt a, Elt b)
 --     => Mod (Exp (a,b)) where
 --   type ModRep (Exp (a,b)) = Exp Int64 -- ~ Integer
