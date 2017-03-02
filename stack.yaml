@@ -41,14 +41,12 @@ packages:
   extra-dep: true
 
 - location:
-    git:    https://github.com/cpeikert/Lol.git
-    commit: 45a1f4d4fbe00228f077da791deef74e5083f18b
+    git:    https://github.com/tmcdonell/Lol.git
+    commit: 4158fb27937be736acb668ef2415fc2becdbbbf8
   extra-dep: true
   subdirs:
     - 'lol'
     - 'lol-apps'
-    - 'lol-benches'
-    - 'lol-tests'
 
 - location:
     git:    https://github.com/bscarlet/llvm-general.git

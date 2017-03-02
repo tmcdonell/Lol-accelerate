@@ -11,24 +11,21 @@ Portability : POSIX
 Main driver for lol-apps tests with AT.
 -}
 
-{-# LANGUAGE CPP #-}
-
 module TestAppsAccMain where
-
-#ifdef WITH_APPS
 
 import Crypto.Lol (TrivGad)
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate
-import Crypto.Lol.Applications.Tests.Standard
+import Crypto.Lol.Applications.Tests
 import Data.Proxy
 
+import System.Environment
 import Test.Framework
 
 main :: IO ()
 main = do
   opts <- testOptions
-  flip defaultMainWithOpts opts
-    [testGroup "AT" $ defaultTests (Proxy::Proxy AT) (Proxy::Proxy TrivGad) ]
+  flip defaultMainWithOpts opts $
+    defaultAppsTests (Proxy::Proxy AT) (Proxy::Proxy TrivGad)
 
 testOptions :: IO RunnerOptions
 testOptions = do
@@ -38,14 +35,7 @@ testOptions = do
       (_,      r2)  = span (/= "-ACC") $ dropWhile (== "+ACC") r1
       after         = dropWhile (== "-ACC") r2
   --
-  mopts <- interpretArgs $ "--threads=1" : "--maximum-generated-tests=100" : before ++ after
+  mopts <- interpretArgs $ "--threads=1" : "--maximum-generated-tests=5" : before ++ after
   case mopts of
     Left err       -> error err
     Right (opts,_) -> return opts
-
-#else
-
-main :: IO ()
-main = return ()
-
-#endif

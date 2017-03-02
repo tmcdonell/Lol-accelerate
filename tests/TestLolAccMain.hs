@@ -14,8 +14,10 @@ Main driver for lol tests with AT.
 module TestLolAccMain where
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate
-import Crypto.Lol.Tests.Standard
+import Crypto.Lol.Tests
 import Data.Proxy
+import Test.Framework
 
 main :: IO ()
-main = defaultTestMain (Proxy::Proxy AT)
+main = defaultMainWithArgs
+  (defaultLolTests (Proxy::Proxy AT)) ["--maximum-generated-tests=5"]

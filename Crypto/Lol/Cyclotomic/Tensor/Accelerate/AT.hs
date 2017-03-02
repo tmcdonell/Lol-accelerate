@@ -38,7 +38,7 @@ import Crypto.Lol.Prelude                                           as P
 import Crypto.Lol.Reflects
 import Crypto.Lol.Types.FiniteField                                 as FF
 import Crypto.Lol.Types.IZipVector
-import Crypto.Lol.Utils.ShowType
+import Crypto.Lol.Tests
 
 import Data.Array.Accelerate.Algebra.Additive                       as Additive
 import Data.Array.Accelerate.Algebra.Module                         as Module

@@ -11,22 +11,11 @@ Portability : POSIX
 Example using KeyHomomorphicPRF with AT.
 -}
 
-{-# LANGUAGE CPP #-}
-
 module KHPRFAccMain where
 
-#ifdef WITH_APPS
-
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate
-import Crypto.Lol.Applications.Examples.KHPRF
+import Crypto.Lol.Applications.Examples
 import Data.Proxy
 
 main :: IO ()
 main = khprfRingMain (Proxy::Proxy AT)
-
-#else
-
-main :: IO ()
-main = return ()
-
-#endif
