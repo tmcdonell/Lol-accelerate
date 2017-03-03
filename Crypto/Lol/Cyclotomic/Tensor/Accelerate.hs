@@ -189,6 +189,10 @@ instance (Reduce a (Exp b), Reduce a (Exp c), Elt b, Elt c) => Reduce a (Exp (b,
     in
     A.lift (b,c)
 {-
+-- EAC: Bogus instance since Int64 results in insufficient precision
+-- I fixed the need for this instance in Crypto.Lol.Tests.Default, see the
+-- comment there.
+
 type instance LiftOf (Exp (a,b)) = Exp Int64  -- ~ Integer
 
 instance ( Mod a, ToInteger (ModRep a), Lift' (Exp a), Reduce (Exp Int64) (Exp a), LiftOf (Exp a) ~ Exp Int64, Elt a
