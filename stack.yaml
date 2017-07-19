@@ -1,29 +1,24 @@
 # For more information, see: http://docs.haskellstack.org/en/stable/yaml_configuration.html
 # vim: nospell
 
-resolver: lts-8.2
+resolver: lts-8.0
 
 packages:
 - '.'
 
 - location:
     git:    https://github.com/AccelerateHS/accelerate.git
-    commit: b471890ae4b7bbdbbee00880331b6ee109efcf67
+    commit: a4e5d51334f303a32ee45979f342f8c391b43da3
   extra-dep: true
 
 - location:
     git:    https://github.com/AccelerateHS/accelerate-io.git
-    commit: f4c84a5c961345bf65059f555f21c6e8bf3070a1
-  extra-dep: true
-
-- location:
-    git:    https://github.com/AccelerateHS/accelerate-cuda.git
-    commit: cd8d31c24717ab1041057d1979113689ac79fead
+    commit: 6e6fd16a380af2054ab6abe5fd2423e19dda783c
   extra-dep: true
 
 - location:
     git:    https://github.com/AccelerateHS/accelerate-llvm.git
-    commit: 6c4d7a6c20c871cfbe0deedd65cd2c97ed9fd50d
+    commit: c042c80388dac6b15fdb17d1f4f66b10d6c47e0a
   extra-dep: true
   subdirs:
     - 'accelerate-llvm'
@@ -32,59 +27,47 @@ packages:
 
 - location:
     git:    https://github.com/tmcdonell/accelerate-bignum.git
-    commit: 11dfa61ec92664be3e3d82fda0ffdf956a0300bf
+    commit: e827bff4b1a0602b950a7440fe89855f69efba0f
   extra-dep: true
 
 - location:
     git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
-    commit: 8adc16cf42bfc43ca3967b8bdc33d4d442026751
+    commit: 330f2d74a8fa135c0ca143d39c53a56f2eee1fc7
   extra-dep: true
 
 - location:
     git:    https://github.com/tmcdonell/Lol.git
-    commit: 4158fb27937be736acb668ef2415fc2becdbbbf8
+    commit: a2226a2dea9bb90576d82c0a6f452ff3a02bb534
   extra-dep: true
   subdirs:
     - 'lol'
     - 'lol-apps'
 
 - location:
-    git:    https://github.com/bscarlet/llvm-general.git
-    # commit: 730ceeee3776a1f62bc874ec166d277124a2294b  # 3.5
-    # commit: 529f9bf117b5ffd1ccf7ebeb679a97b3b1c67938  # 3.8
-    commit: ec1ad5bd2112e7f64dbb43441b5e2075cf6ad8e7  # 3.9
+    git:    https://github.com/tmcdonell/cuda.git
+    commit: b6e62e26a4a62cb94961c4b9fd9eca97ad04652e
   extra-dep: true
-  subdirs:
-    - 'llvm-general'
-    - 'llvm-general-pure'
 
 extra-deps:
 - 'chaselev-deque-0.5.0.5'
-- 'cuda-0.7.5.2'
 - 'libffi-0.1'
-# - 'llvm-general-3.5.1.2'
-# - 'llvm-general-pure-3.5.1.0'
+- 'llvm-hs-4.1.0.0'
+- 'llvm-hs-pure-4.1.0.0'
 - 'non-negative-0.1.1'
 - 'numeric-prelude-0.4.2'
+- 'nvvm-0.7.5.2'
 - 'tagged-transformer-0.8'
 - 'unique-0'
 
 # Override default flag values for local packages and extra-deps
 flags:
-  llvm-general:
-    shared-llvm: true
   lol-accelerate:
     cuda: false
     llvm-cpu: true
     llvm-ptx: false
   accelerate:
-    internal-checks: false
-    unsafe-checks: false
-    bounds-checks: true
     debug: true
     ekg: false
-  accelerate-cuda:
-    debug: false
   accelerate-llvm-native:
     debug: true
   accelerate-llvm-ptx:
