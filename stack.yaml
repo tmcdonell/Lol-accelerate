@@ -62,7 +62,6 @@ extra-deps:
 # Override default flag values for local packages and extra-deps
 flags:
   lol-accelerate:
-    cuda: false
     llvm-cpu: true
     llvm-ptx: false
   accelerate:
