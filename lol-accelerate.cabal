@@ -23,17 +23,13 @@ cabal-version:        >= 1.10
 extra-source-files:
   README.md
 
-flag cuda
-  description: Enable the CUDA backend for NVIDIA GPUs
-  default:     False
-
 flag llvm-cpu
   description: Enable the LLVM backend for Multicore CPUs
-  default:     False
+  default:     True
 
 flag llvm-ptx
   description: Enable the LLVM backend for NIVDIA GPUs
-  default:     False
+  default:     True
 
 Flag with-apps
   Description: When this flag is enabled, lol-apps tests and benchmarks are buildable.
@@ -85,11 +81,6 @@ library
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow
 
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-
-  if flag(cuda)
-    cpp-options:      -DACCELERATE_CUDA_BACKEND
-    build-depends:
-        accelerate-cuda                 >= 0.16
 
   if flag(llvm-cpu)
     cpp-options:      -DACCELERATE_LLVM_NATIVE_BACKEND
@@ -232,3 +223,5 @@ executable symmshe-acc
     base >= 4.9 && < 4.10,
     lol-apps >= 0.2.1 && < 0.3,
     lol-accelerate
+
+-- vim: nospell

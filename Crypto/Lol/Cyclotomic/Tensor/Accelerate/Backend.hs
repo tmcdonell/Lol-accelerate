@@ -22,9 +22,6 @@ import Text.PrettyPrint
 
 import Data.Array.Accelerate                            ( Acc, Arrays )
 import qualified Data.Array.Accelerate.Interpreter      as Interp
-#ifdef ACCELERATE_CUDA_BACKEND
-import qualified Data.Array.Accelerate.CUDA             as CUDA
-#endif
 #ifdef ACCELERATE_LLVM_NATIVE_BACKEND
 import qualified Data.Array.Accelerate.LLVM.Native      as CPU
 #endif
@@ -36,9 +33,6 @@ import qualified Data.Array.Accelerate.LLVM.PTX         as PTX
 -- | The set of backends available to execute the program.
 --
 data Backend = Interpreter
-#ifdef ACCELERATE_CUDA_BACKEND
-             | CUDA
-#endif
 #ifdef ACCELERATE_LLVM_NATIVE_BACKEND
              | CPU
 #endif
@@ -58,11 +52,8 @@ instance Show Backend where
 #ifdef ACCELERATE_LLVM_PTX_BACKEND
   show PTX              = "llvm-ptx"
 #endif
-#ifdef ACCELERATE_CUDA_BACKEND
-  show CUDA             = "cuda"
-#endif
 
--- The set of available backnds. This will be used for both the command line
+-- The set of available backends. This will be used for both the command line
 -- options as well as the fancy header generation.
 --
 availableBackends :: (options :-> Backend) -> [OptDescr (options -> options)]
@@ -70,11 +61,6 @@ availableBackends optBackend =
   [ Option  [] [show Interpreter]
             (NoArg (set optBackend Interpreter))
             "reference implementation (sequential, slow)"
-#ifdef ACCELERATE_CUDA_BACKEND
-  , Option  [] [show CUDA]
-            (NoArg (set optBackend CUDA))
-            "implementation for NVIDIA GPUs (parallel)"
-#endif
 #ifdef ACCELERATE_LLVM_NATIVE_BACKEND
   , Option  [] [show CPU]
             (NoArg (set optBackend CPU))
@@ -92,7 +78,7 @@ defaultBackend :: Backend
 defaultBackend =
   case maxBound of
     Interpreter -> Interpreter
-#if defined(ACCELERATE_CUDA_BACKEND) || defined(ACCELERATE_LLVM_NATIVE_BACKEND) || defined(ACCELERATE_LLVM_PTX_BACKEND)
+#if defined(ACCELERATE_LLVM_NATIVE_BACKEND) || defined(ACCELERATE_LLVM_PTX_BACKEND)
     _           -> succ Interpreter
 #endif
 
@@ -138,9 +124,6 @@ run1 = run1With theBackend
 --
 runWith :: Arrays a => Backend -> Acc a -> a
 runWith Interpreter = Interp.run
-#ifdef ACCELERATE_CUDA_BACKEND
-runWith CUDA        = CUDA.run
-#endif
 #ifdef ACCELERATE_LLVM_NATIVE_BACKEND
 runWith CPU         = CPU.run
 #endif
@@ -151,9 +134,6 @@ runWith PTX         = PTX.run
 
 run1With :: (Arrays a, Arrays b) => Backend -> (Acc a -> Acc b) -> a -> b
 run1With Interpreter f = Interp.run1 f
-#ifdef ACCELERATE_CUDA_BACKEND
-run1With CUDA        f = CUDA.run1 f
-#endif
 #ifdef ACCELERATE_LLVM_NATIVE_BACKEND
 run1With CPU         f = CPU.run1 f
 #endif
