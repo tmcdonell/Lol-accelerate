@@ -100,8 +100,8 @@ wrap2 :: (Acc (Array DIM1 a) -> Acc (Array DIM1 b) -> Acc (Array DIM1 c))
 wrap2 f (Arr xs) (Arr ys) = Arr $ f xs ys
 
 
--- | 'Tensorable represents a "atomic" transform over the base type 'r'. that
--- can be augmented (tensored) on the lift and right by identity transforms of
+-- | 'Tensorable represents an "atomic" transform over the base type 'r' that
+-- can be augmented (tensored) on the left and right by identity transforms of
 -- any dimension. It has the following components:
 --
 --  * The dimension 'd' of the atomic transform 'f'
@@ -172,13 +172,13 @@ dimC ((d, _), l, r) = l*d*r
 -- | Evaluate a transform by evaluating each component in sequence
 --
 eval :: Elt r => Tagged m (Trans r) -> Arr m r -> Arr m r
-eval = eval' . untag
+eval = go . untag
   where
-    eval' Id{}           = id
-    eval' (TSnoc rest f) = eval' rest . evalC f
+    go Id{}           = id
+    go (TSnoc rest f) = go rest . evalC f
 
 evalC :: Elt r => TransC r -> Arr m r -> Arr m r
-evalC ((d, f), _, r) = Arr . unexpose r . f . expose d r . unArr
+evalC ((d, f), _, r) = wrap (unexpose r . f . expose d r)
 
 evalM :: (Elt r, Monad monad) => TaggedT m monad (Trans r) -> monad (Arr m r -> Arr m r)
 evalM = fmap (eval . return) . untagT

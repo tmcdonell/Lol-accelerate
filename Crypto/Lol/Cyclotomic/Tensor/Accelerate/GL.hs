@@ -171,7 +171,7 @@ divCheck arr den =
   let
       (q,r)    = A.unzip $ A.map (\x -> A.lift (x `divMod` den)) (unArr arr)
       ok       = A.all isZero r
-      (ok',q') = run (A.lift (ok,q))  -- TODO: Don't copy 'q' back to the host
+      (ok',q') = run (A.lift (ok,q))
   in
   if A.indexArray ok' Z
      then Just (Arr (A.use q'))

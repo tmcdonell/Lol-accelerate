@@ -82,7 +82,7 @@ mulGCRT
     => monad (Arr m r -> Arr m r)
 mulGCRT =
   let go :: Arr m r -> Arr m r -> Arr m r
-      go x y = Arr $ A.zipWith (*) (unArr x) (unArr y)
+      go x y = wrap2 (A.zipWith (*)) x y
   in
   go <$> gCRT
 
@@ -93,7 +93,7 @@ divGCRT
     => monad (Arr m r -> Arr m r)
 divGCRT =
   let go :: Arr m r -> Arr m r -> Arr m r
-      go x y = Arr $ A.zipWith (*) (unArr x) (unArr y)
+      go x y = wrap2 (A.zipWith (*)) x y
   in
   go <$> gInvCRT
 
