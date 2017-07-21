@@ -38,8 +38,9 @@ import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralD
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 
 -- lol/lol-accelerate
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
 
 import Crypto.Lol.CRTrans
 import Crypto.Lol.Prelude                                    as P hiding (Matrix)
@@ -60,7 +61,7 @@ scalar =
   let n  = proxy totientFact (Proxy :: Proxy m)
       sh = A.constant (Z :. n)
   in
-  return $ Arr . A.fill sh
+  return $ \x -> Arr (run (A.fill sh x))
 
 
 -- | Embeds an array in the CRT basis of the m`th cyclotomic ring into an array
@@ -72,7 +73,7 @@ embed = do
   -- first check existence of the CRT transform in m'
   _ <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp r))
   let indices = proxy baseIndicesCRT (Proxy::Proxy '(m,m'))
-  return $ \(Arr arr) -> Arr $ A.map (arr A.!!) indices
+  return $ \(Arr arr) -> Arr $! runN A.gather indices arr
 
 
 -- | Multiply by @g_m@ in the CRT basis (when it exists)
@@ -450,7 +451,7 @@ wrapVector v = do
       f :: Exp DIM1 -> Exp r
       f ix = indexM vmat (A.lift (ix :. A.constant 0))
   --
-  return . Arr $ A.generate sh f
+  return . Arr $ run (A.generate sh f)
 
 
 -- Reindexing functions
@@ -520,8 +521,8 @@ digitRev p e j
 --
 baseIndicesCRT
     :: (m `Divides` m')
-    => Tagged '(m,m') (Acc (Array DIM1 Int))
+    => Tagged '(m,m') (Array DIM1 Int)
 baseIndicesCRT = do
-  idxs           <- T.baseIndicesCRT
-  return . A.use $! A.fromVectors (Z :. S.length idxs) idxs
+  idxs   <- T.baseIndicesCRT
+  return $! A.fromVectors (Z :. S.length idxs) idxs
 

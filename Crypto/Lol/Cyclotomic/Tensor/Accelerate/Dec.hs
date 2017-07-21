@@ -26,7 +26,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec (
 ) where
 
 -- accelerate
-import Data.Array.Accelerate                                        ( Acc, Array, DIM1, Exp, Elt, FromIntegral, Z(..), (:.)(..), All(..), (?) )
+import Data.Array.Accelerate                                        ( Array, DIM1, Exp, Elt, FromIntegral, Z(..), (:.)(..), All(..), (?) )
 import Data.Array.Accelerate.IO                                     as A
 import qualified Data.Array.Accelerate                              as A
 
@@ -56,13 +56,17 @@ embed :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r)
 embed (Arr arr) =
   let
       indices = proxy baseIndicesDec (Proxy::Proxy '(m,m'))
-      f ib    =
-        let (i,b) = A.unlift ib
-            x     = arr A.!! i              -- XXX: check this is not lifted out of (?)
-        in i A.< zero ? ( zero              -- [See note: baseIndicesDec]
-         , b          ? ( P.negate x, x ))
+      go xs   = A.map f
+        where
+          f ib =
+            let (i,b) = A.unlift ib
+                x     = xs A.!! i               -- XXX: check this is not lifted out of (?)
+            in i A.< zero ? ( zero              -- [See note: baseIndicesDec]
+             , b          ? ( P.negate x
+             , {- else -}     x
+             ))
   in
-  Arr $ A.map f indices
+  Arr $! runN go arr indices
 
 
 -- | Given @v=r^2@, yields the decoding-basis coefficients of a sample from the
@@ -82,7 +86,7 @@ tGaussian v = do
       rad = proxy radicalFact (Proxy::Proxy m)
   --
   x <- A.fromList (Z :. n) <$> realGaussians (v * fromIntegral (m `div` rad)) n
-  return $ fE (Arr (A.use x))
+  return $ fE (Arr x)
 
 
 -- | The @E_m@ transformation for an arbitrary @m@.
@@ -134,10 +138,9 @@ realGaussians var n
 gSqNorm :: (Fact m, Ring (Exp r), Elt r) => Arr m r -> r
 gSqNorm e =
   let e' = fGram e
-      r  = A.foldAll (+) zero
-         $ A.zipWith (*) (unArr e) (unArr e')
+      r  = A.foldAll (+) zero $$ A.zipWith (*)
   in
-  run r `A.indexArray` Z
+  runN r (unArr e) (unArr e') `A.indexArray` Z
 
 
 -- | Multiply by @\hat{m}@ times the Gram matrix of decoding basis @R^vee@
@@ -172,7 +175,7 @@ pGramDec =
 -- TODO: Make sure these really are memoised.
 --
 
--- NOTE:
+-- Note: [baseIndicesDec]
 --
 --  * Since we don't have sum types in Accelerate, we encode the first element
 --    of the tuple (the new index) to (-1) on Nothing, otherwise return the
@@ -183,7 +186,7 @@ pGramDec =
 --
 baseIndicesDec
     :: forall m m'. (m `Divides` m')
-    => Tagged '(m,m') (Acc (Array DIM1 (Int,Bool)))
+    => Tagged '(m,m') (Array DIM1 (Int,Bool))
 baseIndicesDec = do
   (ix,b) <- U.unzip
           . U.map (maybe (-1,0) (\(i,b) -> (i, fromBool b)))
@@ -191,7 +194,7 @@ baseIndicesDec = do
   --
   let ix' = U.convert ix
       b'  = U.convert b
-  return . A.use $! A.fromVectors (Z :. U.length ix) (((), ix'), b')
+  return $! A.fromVectors (Z :. U.length ix) (((), ix'), b')
 
 -- To match the encoding of Booleans in Accelerate
 --

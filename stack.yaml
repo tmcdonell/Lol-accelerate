@@ -64,6 +64,8 @@ flags:
   lol-accelerate:
     llvm-cpu: true
     llvm-ptx: false
+    with-apps: false
+    with-execs: false
   accelerate:
     debug: true
     ekg: false

@@ -13,9 +13,13 @@ Example, test, and macro-benchmark for homomorphic evaluation of a PRF with AT.
 
 module HomomPRFAccMain where
 
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate
 import Crypto.Lol.Applications.Examples
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate
+import Data.Array.Accelerate.Debug
 import Data.Proxy
 
 main :: IO ()
-main = homomPRFMain (Proxy::Proxy AT)
+main = do
+  accInit
+  homomPRFMain (Proxy::Proxy AT)
+

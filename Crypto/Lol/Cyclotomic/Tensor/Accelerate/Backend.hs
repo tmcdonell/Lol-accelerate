@@ -21,6 +21,7 @@ import System.IO.Unsafe
 import Text.PrettyPrint
 
 import Data.Array.Accelerate                            ( Acc, Arrays )
+import Data.Array.Accelerate.Trafo                      ( Afunction, AfunctionR )
 import qualified Data.Array.Accelerate.Interpreter      as Interp
 #ifdef ACCELERATE_LLVM_NATIVE_BACKEND
 import qualified Data.Array.Accelerate.LLVM.Native      as CPU
@@ -116,8 +117,8 @@ run = runWith theBackend
 
 -- | Execute an Accelerate program of one argument
 --
-run1 :: (Arrays a, Arrays b) => (Acc a -> Acc b) -> a -> b
-run1 = run1With theBackend
+runN :: Afunction f => f -> AfunctionR f
+runN = runNWith theBackend
 
 
 -- | Execute Accelerate programs using the selected backend
@@ -132,12 +133,12 @@ runWith PTX         = PTX.run
 #endif
 
 
-run1With :: (Arrays a, Arrays b) => Backend -> (Acc a -> Acc b) -> a -> b
-run1With Interpreter f = Interp.run1 f
+runNWith :: Afunction f => Backend -> f -> AfunctionR f
+runNWith Interpreter f = Interp.runN f
 #ifdef ACCELERATE_LLVM_NATIVE_BACKEND
-run1With CPU         f = CPU.run1 f
+runNWith CPU         f = CPU.runN f
 #endif
 #ifdef ACCELERATE_LLVM_PTX_BACKEND
-run1With PTX         f = PTX.run1 f
+runNWith PTX         f = PTX.runN f
 #endif
 

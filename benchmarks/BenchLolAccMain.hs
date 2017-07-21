@@ -24,6 +24,7 @@ import Crypto.Lol.Factored
 import Crypto.Random.DRBG
 
 import Data.Proxy
+import Data.Array.Accelerate.Debug
 
 -- choose which layers of Lol to benchmark
 ls :: [String]
@@ -63,7 +64,10 @@ bs = [
   ]
 
 main :: IO ()
-main = diagnosticMain
+main = do
+  accInit
+  diagnosticMain
+
 {-
 tableMain :: IO ()
 tableMain = do
@@ -71,6 +75,7 @@ tableMain = do
   g1 <- defaultBenches (Proxy::Proxy AT)
   mapM_ (T.prettyBenches opts) g1
 -}
+
 diagnosticMain :: IO ()
 diagnosticMain = do
   let opts = defaultDiagnosticOpts{levels=ls, benches=bs}
@@ -79,3 +84,4 @@ diagnosticMain = do
   b2 <- benchGroup "Twace-Embed"
           [twoIdxBenches (Proxy::Proxy '(F64*F9*F25, F64*F9*F25, Zq 14401)) (Proxy::Proxy AT)]
   mapM_ (prettyBenchesDiagnostic opts) [b1,b2]
+

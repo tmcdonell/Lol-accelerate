@@ -24,7 +24,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL (
 
 ) where
 
-import Data.Array.Accelerate                                        ( Acc, Array, DIM2, Exp, Elt, Z(..), (:.)(..) )
+import Data.Array.Accelerate                                        ( Acc, Array, DIM0, DIM1, DIM2, Exp, Elt, Z(..), (:.)(..) )
 import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger ()
@@ -163,18 +163,21 @@ wrapGInv gInv arr =
   fGInv arr `divCheck` rad
 
 divCheck
-    :: (IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
+    :: forall m r. (IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
     => Arr m r
     -> Exp r
     -> Maybe (Arr m r)
 divCheck arr den =
   let
-      (q,r)    = A.unzip $ A.map (\x -> A.lift (x `divMod` den)) (unArr arr)
-      ok       = A.all isZero r
-      (ok',q') = run (A.lift (ok,q))
+      check :: Acc (Array DIM1 r) -> Acc (Array DIM0 Bool, Array DIM1 r)
+      check xs = let (q,r) = A.unzip $ A.map (\x -> A.lift (x `divMod` den)) xs
+                     ok    = A.all isZero r
+                 in
+                 A.lift (ok, q)
+      (ok',q') = runN check (unArr arr)
   in
   if A.indexArray ok' Z
-     then Just (Arr (A.use q'))
+     then Just (Arr q')
      else Nothing
 
 -- Doesn't do division by (odd) p

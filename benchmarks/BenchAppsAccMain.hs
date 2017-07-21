@@ -22,11 +22,16 @@ import Crypto.Lol.Benchmarks
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate
 import Crypto.Random.DRBG
 
+import Data.Array.Accelerate.Debug
+
 main :: IO ()
 main = do
-  let o = (defaultTableOpts Nothing)
+  let o   = (defaultTableOpts Nothing)
       pct = Proxy::Proxy AT
+  --
+  accInit
   bs <- sequence $
           defaultSHEBenches pct (Proxy::Proxy TrivGad) (Proxy::Proxy HashDRBG) ++
           [defaultKHPRFBenches pct (Proxy::Proxy (BaseBGad 2))]
   mapM_ (prettyBenchesTable o) bs
+

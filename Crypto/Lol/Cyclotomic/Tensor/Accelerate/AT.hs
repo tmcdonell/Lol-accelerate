@@ -31,7 +31,6 @@ import qualified Data.Array.Accelerate                              as A
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               hiding ( wrap, wrap2 )
---import Crypto.Lol.Cyclotomic.Tensor.Representation
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common     as Arr
 
 import Crypto.Lol.Prelude                                           as P
@@ -54,7 +53,7 @@ import Data.Maybe
 import Data.Traversable
 import qualified Data.Vector.Generic                                as V
 
--- import Debug.Trace
+-- import qualified Debug.Trace                                        as Debug
 
 
 -- | Tensor backed by Accelerate stages the computation as an expression
@@ -81,7 +80,7 @@ instance Show (ArgType AT) where
 
 instance Show r => Show (AT m r) where
   show (ZV z) = show (unIZipVector z)
-  show (AT a) = show (run (unArr a))    -- runs but then discards the results ):
+  show (AT a) = show (unArr a)
 
 instance (P.Eq r, A.Eq r) => P.Eq (AT m r) where
   ZV a == ZV b = a == b
@@ -118,22 +117,28 @@ instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF
   --
   r *> (AT (Arr at)) =
     let
-        d     = proxy value (Proxy::Proxy d)
-        gf    = A.use $ A.fromList (Z :. d) (FF.toList r)
+        d   = proxy value (Proxy::Proxy d)
+        gf  = A.fromList (Z :. d) (FF.toList r)
         --
-        n     = A.length at
-        h     = n `div` A.constant d  -- error if n `mod` d /= 0, so later reshape is fine
+        -- TLM: Instead of the 1D->2D->1D process we have here, we instead
+        -- flatten the replicated gf array and perform the zipWith on the input
+        -- array unchanged. This may produce more efficient code, but may also
+        -- be less obvious what is going on?
+        --
+        -- AT . Arr $ A.reshape (A.index1 n)
+        --          $ A.zipWith (*) (A.replicate (A.lift (Z :. h :. All)) gf)  -- All == d
+        --                          (A.reshape   (A.lift (Z :. h :. d  )) at)
+        --
+        -- AT . Arr $ A.zipWith (*) (A.flatten (A.replicate (A.lift (Z :. h :. All)) gf)) at
+        --
+        go g a =
+          let n = A.length a
+              h = n `div` A.constant d  -- error if n `mod` d /= 0, so later reshape is fine
+          in A.reshape (A.index1 n)
+           $ A.zipWith (*) (A.replicate (A.lift (Z :. h :. All)) g)  -- All == d
+                           (A.reshape   (A.lift (Z :. h :. d  )) a)
     in
-    -- TLM: Instead of the 1D->2D->1D process we have here, we could instead
-    -- flatten the replicated gf array and perform the zipWith on the input
-    -- array unchanged. This may produce more efficient code, but may also be
-    -- less obvious what is going on?
-    --
-    -- > AT . Arr $ A.zipWith (*) (A.flatten (A.replicate (A.lift (Z :. h :. All)) gf)) at
-    --
-    AT . Arr $ A.reshape (A.index1 n)
-             $ A.zipWith (*) (A.replicate (A.lift (Z :. h :. All)) gf)  -- All == d
-                             (A.reshape   (A.lift (Z :. h :. d  )) at)
+    AT . Arr $! runN go gf at
   --
   r *> (ZV zv) =
     let xs  = V.toList (unIZipVector zv)
@@ -145,14 +150,14 @@ instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF
 instance (NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) where
   isZero (ZV v) = NPZT.isZero v
   isZero (AT a) =
-    let r = A.all ZeroTestable.isZero (unArr a)
-    in  A.indexArray (run r) Z
+    let !r = runN (A.all ZeroTestable.isZero) (unArr a)
+    in  A.indexArray r Z
 
 
 -- Miscellaneous instances
 
 instance NFData r => NFData (AT m r) where
-  rnf (AT at) = rnf (run (unArr at))    -- runs but then discards the results ):
+  rnf (AT at) = rnf (unArr at)
   rnf (ZV zv) = rnf zv
 
 instance (Elt r, Random r, Fact m) => Random (AT m r) where
@@ -175,28 +180,29 @@ toAT (ZV z) =
       sh         = Z :. V.length v
       f (Z :. i) = v V.! i
   in
-  -- trace "Lol.Accelerate.toAT" $ -- debugging
-  AT . Arr $ A.use (A.fromFunction sh f)
+  -- Debug.trace "Lol.Accelerate.toAT" $ -- debugging
+  AT $ Arr (A.fromFunction sh f)
 
 -- | /O(n)/ Convert internal representation to IZipVector. Note that this
 -- entails executing the Accelerate computation.
 --
 toZV :: Fact m => AT m r -> AT m r
 toZV v@ZV{}         = v
-toZV (AT (Arr acc)) =
+toZV (AT (Arr arr)) =
   let
-      arr    = run acc
       Z :. n = A.arrayShape arr
       f i    = arr `A.indexArray` (Z :. i)
   in
-  -- trace "Lol.Accelerate.toZV" $ -- debugging
+  -- Debug.trace "Lol.Accelerate.toZV" $ -- debugging
   ZV $ fromMaybe (error "Accelerate.toZV: internal error")
      $ iZipVector (V.generate n f)
 
 
+{-# INLINE wrap #-}
 wrap :: (Elt a, Elt b) => (Arr ma a -> Arr mb b) -> AT ma a -> AT mb b
 wrap f = AT . unwrap f
 
+{-# INLINE wrap2 #-}
 wrap2 :: (Elt a, Elt b, Elt c)
       => (Arr ma a -> Arr mb b -> Arr mc c)
       -> AT ma a

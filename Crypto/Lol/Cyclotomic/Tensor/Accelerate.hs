@@ -48,6 +48,7 @@ import Data.Array.Accelerate.Crypto.Lol.Types.Complex               ()
 import Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic               ()
 import Data.Array.Accelerate.Crypto.Lol.CRTrans                     ()
 
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT                   as AT
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               as Arr
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
@@ -167,7 +168,8 @@ instance Tensor AT where
   unzipT xs     = (AT (Arr ls), AT (Arr rs))
     where
       AT (Arr xs') = toAT xs
-      (ls,rs)      = A.unzip xs'
+      ls           = runN (A.map A.fst) xs'
+      rs           = runN (A.map A.snd) xs'
 
 
 scalarCRT' :: (CRTrans mon (Exp r), Fact m, Elt r) => mon (r -> Arr m r)

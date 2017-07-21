@@ -15,9 +15,15 @@ module TestLolAccMain where
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate
 import Crypto.Lol.Tests
+import Data.Array.Accelerate.Debug
 import Data.Proxy
+import System.Environment
 import Test.Framework
 
 main :: IO ()
-main = defaultMainWithArgs
-  (defaultLolTests (Proxy::Proxy AT)) ["--maximum-generated-tests=5"]
+main = do
+  accInit
+  argv <- getArgs
+  defaultMainWithArgs (defaultLolTests (Proxy::Proxy AT))
+    $ "--threads=1" : "--maximum-generated-tests=5" : argv
+

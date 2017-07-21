@@ -61,7 +61,9 @@ library
     , singletons                        >= 1.1.2.1
     , vector                            >= 0.10
 
-  ghc-options:        -Wall
+  ghc-options:
+    -Wall
+    -O2
 
   exposed-modules:
       Crypto.Lol.Cyclotomic.Tensor.Accelerate
@@ -96,132 +98,175 @@ library
 Benchmark bench-lol-acc
   type:               exitcode-stdio-1.0
   default-language:   Haskell2010
+  hs-source-dirs:     benchmarks
   main-is:            BenchLolAccMain.hs
   ghc-options:        -main-is BenchLolAccMain
-  hs-source-dirs:     benchmarks
 
-  ghc-options:        -Wall
-                      -O2
-                      -threaded
-                      -rtsopts
-                      -with-rtsopts=-n2M
-                      -with-rtsopts=-A64M
-                      -funfolding-creation-threshold=15000
-                      -funfolding-use-threshold=1000
+  ghc-options:
+    -Wall
+    -O2
+    -threaded
+    -rtsopts
+    -with-rtsopts=-n2M
+    -with-rtsopts=-A64M
+    -funfolding-creation-threshold=15000
+    -funfolding-use-threshold=1000
 
   build-depends:
-    base,
-    DRBG,
-    lol,
-    lol-accelerate
+      base
+    , accelerate
+    , DRBG
+    , lol
+    , lol-accelerate
 
 test-suite test-lol-acc
   type:               exitcode-stdio-1.0
   default-language:   Haskell2010
+  hs-source-dirs:     tests
   main-is:            TestLolAccMain.hs
   ghc-options:        -main-is TestLolAccMain
-  hs-source-dirs:     tests
 
-  ghc-options:        -Wall
-                      -O2
-                      -threaded
-                      -rtsopts
-                      -with-rtsopts=-n2M
-                      -with-rtsopts=-A64M
-                      -funfolding-creation-threshold=15000
-                      -funfolding-use-threshold=1000
+  ghc-options:
+    -Wall
+    -O2
+    -threaded
+    -rtsopts
+    -with-rtsopts=-n2M
+    -with-rtsopts=-A64M
+    -funfolding-creation-threshold=15000
+    -funfolding-use-threshold=1000
 
   build-depends:
-    base,
-    lol,
-    lol-accelerate,
-    test-framework < 0.9
+      base
+    , accelerate
+    , lol
+    , lol-accelerate
+    , test-framework        >= 0.8 && < 0.9
+
+Benchmark bench-lol-apps-acc
+  type:               exitcode-stdio-1.0
+  default-language:   Haskell2010
+  hs-source-dirs:     benchmarks
+  main-is:            BenchAppsAccMain.hs
+  ghc-options:        -main-is BenchAppsAccMain
+
+  if !flag(with-apps)
+    buildable: False
+
+  ghc-options:
+    -O2
+    -funfolding-creation-threshold=15000
+    -funfolding-use-threshold=1000
+    -threaded
+    -rtsopts
+    -with-rtsopts=-n2M
+    -with-rtsopts=-A64M
+
+  build-depends:
+      base                  >= 4.9 && < 4.10
+    , DRBG                  >= 0.5 && < 0.6
+    , lol                   >= 0.7.0.0 && < 0.8
+    , lol-accelerate
+    , lol-apps              >= 0.2.1 && < 0.3
+    , MonadRandom           >= 0.2 && < 0.6
+
+test-suite test-lol-apps-acc
+  type:               exitcode-stdio-1.0
+  default-language:   Haskell2010
+  hs-source-dirs:     tests
+  main-is:            TestAppsAccMain.hs
+  ghc-options:        -main-is TestAppsAccMain
+
+  if !flag(with-apps)
+    buildable: False
+
+  ghc-options:
+    -O2
+    -threaded
+    -rtsopts
+    -with-rtsopts=-n2M
+    -with-rtsopts=-A64M
+    -- -with-rtsopts=-qg
+
+  build-depends:
+      base                  >= 4.9 && < 4.10
+    , accelerate
+    , lol                   >= 0.7.0.0 && < 0.8
+    , lol-accelerate
+    , lol-apps              >= 0.2.1 && < 0.3
+    , test-framework        >= 0.8 && < 0.9
+
+executable homomprf-acc
+  default-language:   Haskell2010
+  hs-source-dirs:     examples
+  main-is:            HomomPRFAccMain.hs
+  ghc-options:        -main-is HomomPRFAccMain
+
+  if !flag(with-apps) || !flag(with-execs)
+    buildable: False
+
+  ghc-options:
+    -O2
+    -threaded
+    -rtsopts
+    -with-rtsopts=-n2M
+    -with-rtsopts=-A64M
+    -- -with-rtsopts=-qg
+
+  build-depends:
+      base                  >= 4.9 && < 4.10
+    , lol-apps              >= 0.2.1 && < 0.3
+    , lol-accelerate
+    , accelerate
+
+executable khprf-acc
+  default-language:   Haskell2010
+  hs-source-dirs:     examples
+  main-is:            KHPRFAccMain.hs
+  ghc-options:        -main-is KHPRFAccMain
+
+  if !flag(with-apps) || !flag(with-execs)
+    buildable: False
+
+  ghc-options:
+    -O2
+    -threaded
+    -rtsopts
+    -with-rtsopts=-n2M
+    -with-rtsopts=-A64M
+    -- -with-rtsopts=-qg
+
+  build-depends:
+      base                  >= 4.9 && < 4.10
+    , lol-apps              >= 0.2.1 && < 0.3
+    , lol-accelerate
+    , accelerate
+
+executable symmshe-acc
+  default-language:   Haskell2010
+  hs-source-dirs:     examples
+  main-is:            SHEAccMain.hs
+  ghc-options:        -main-is SHEAccMain
+
+  if !flag(with-apps) || !flag(with-execs)
+    buildable: False
+
+  ghc-options:
+    -O2
+    -threaded
+    -rtsopts
+    -with-rtsopts=-n2M
+    -with-rtsopts=-A64M
+    -- -with-rtsopts=-qg
+
+  build-depends:
+      base                  >= 4.9 && < 4.10
+    , lol-apps              >= 0.2.1 && < 0.3
+    , lol-accelerate
+    , accelerate
 
 source-repository head
   type:               git
   location:           https://github.com/tmcdonell/lol-accelerate
-
--- vim: nospell
-
-Benchmark bench-lol-apps-acc
-  type:             exitcode-stdio-1.0
-  default-language: Haskell2010
-  main-is:          BenchAppsAccMain.hs
-  ghc-options:      -main-is BenchAppsAccMain
-  if !flag(with-apps)
-    buildable: False
-  hs-source-dirs:   benchmarks
-
-  ghc-options: -O2 -funfolding-creation-threshold=15000 -funfolding-use-threshold=1000
-
-  build-depends:
-    base >= 4.9 && < 4.10,
-    DRBG < 0.6,
-    lol >= 0.7.0.0 && < 0.8,
-    lol-apps >= 0.2.1 && < 0.3,
-    lol-accelerate,
-    MonadRandom >= 0.2 && < 0.6
-
-test-suite test-lol-apps-acc
-  type:             exitcode-stdio-1.0
-  default-language: Haskell2010
-  main-is:          TestAppsAccMain.hs
-  ghc-options:      -main-is TestAppsAccMain
-  if !flag(with-apps)
-    buildable: False
-  hs-source-dirs:   tests
-  ghc-options:      -threaded -O2
-
-  build-depends:
-    base >= 4.9 && < 4.10,
-    lol >= 0.7.0.0 && < 0.8,
-    lol-apps >= 0.2.1 && < 0.3,
-    lol-accelerate,
-    test-framework < 0.9
-
-executable homomprf-acc
-  hs-source-dirs: examples
-  default-language: Haskell2010
-  main-is: HomomPRFAccMain.hs
-  if !flag(with-apps) || !flag(with-execs)
-    buildable: False
-  ghc-options: -main-is HomomPRFAccMain
-
-  ghc-options: -threaded -rtsopts -O2
-
-  build-depends:
-    base >= 4.9 && < 4.10,
-    lol-apps >= 0.2.1 && < 0.3,
-    lol-accelerate
-
-executable khprf-acc
-  hs-source-dirs: examples
-  default-language: Haskell2010
-  main-is: KHPRFAccMain.hs
-  if !flag(with-apps) || !flag(with-execs)
-    buildable: False
-  ghc-options: -main-is KHPRFAccMain
-
-  ghc-options: -threaded -rtsopts -O2
-
-  build-depends:
-    base >= 4.9 && < 4.10,
-    lol-apps >= 0.2.1 && < 0.3,
-    lol-accelerate
-
-executable symmshe-acc
-  hs-source-dirs:   examples
-  default-language: Haskell2010
-  main-is:          SHEAccMain.hs
-  if !flag(with-apps) || !flag(with-execs)
-    buildable: False
-  ghc-options: -main-is SHEAccMain
-
-  ghc-options: -threaded -rtsopts -O2
-
-  build-depends:
-    base >= 4.9 && < 4.10,
-    lol-apps >= 0.2.1 && < 0.3,
-    lol-accelerate
 
 -- vim: nospell

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
@@ -27,6 +28,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common (
 
   -- utilities
   wrap, wrap2,
+  ($$),
 
 ) where
 
@@ -56,7 +58,7 @@ import Text.Printf
 -- XXX: Why do we store this as a regular 1D array? Need to properly understand
 --      what 'expose' and 'unexpose' are doing.
 --
-newtype Arr (m :: Factored) r = Arr { unArr :: Acc (Array DIM1 r) }
+data Arr (m :: Factored) r = Arr { unArr :: !(Array DIM1 r) }
   deriving Show
 
 -- Although the first argument is phantom, it affects the representation.
@@ -70,12 +72,8 @@ type role Arr nominal nominal
 -- some (possibly quite large) expression.
 --
 instance A.Eq r => Eq (Arr m r) where
-  a1 == a2 = let r = A.and (A.zipWith (A.==) (unArr a1) (unArr a2))
-             in  A.indexArray (run r) Z
-
-  a1 /= a2 = let r = A.or (A.zipWith (A./=) (unArr a1) (unArr a2))
-             in  A.indexArray (run r) Z
-
+  Arr xs == Arr ys = let !go = runN (A.and $$ A.zipWith (A.==)) in A.indexArray (go xs ys) Z
+  Arr xs /= Arr ys = let !go = runN (A.or  $$ A.zipWith (A./=)) in A.indexArray (go xs ys) Z
 
 instance (Elt r, Random r, Fact m) => Random (Arr m r) where
   randomR = error "Arr.randomR: not supported"
@@ -85,19 +83,27 @@ instance (Elt r, Random r, Fact m) => Random (Arr m r) where
     in
     runRand $ do
       xs     <- replicateM n (liftRand random)
-      return $! Arr (A.use (A.fromList sh xs))
+      return $! Arr (A.fromList sh xs)
 
 
-wrap :: (Acc (Array DIM1 a) -> Acc (Array DIM1 b))
+{-# INLINE wrap #-}
+wrap :: (Elt a, Elt b)
+     => (Acc (Array DIM1 a) -> Acc (Array DIM1 b))
      -> Arr m  a
      -> Arr m' b
-wrap f = Arr . f . unArr
+wrap f = Arr . go . unArr
+  where
+    !go = runN f
 
-wrap2 :: (Acc (Array DIM1 a) -> Acc (Array DIM1 b) -> Acc (Array DIM1 c))
+{-# INLINE wrap2 #-}
+wrap2 :: (Elt a, Elt b, Elt c)
+      => (Acc (Array DIM1 a) -> Acc (Array DIM1 b) -> Acc (Array DIM1 c))
       -> Arr ma a
       -> Arr mb b
       -> Arr mc c
-wrap2 f (Arr xs) (Arr ys) = Arr $ f xs ys
+wrap2 f (Arr xs) (Arr ys) = Arr $ go xs ys
+  where
+    !go = runN f
 
 
 -- | 'Tensorable represents an "atomic" transform over the base type 'r' that
@@ -130,7 +136,7 @@ data Trans r where
 repl :: forall m r. (Fact m, Elt r) => Exp r -> Arr m r
 repl r =
   let n = proxy totientFact (Proxy :: Proxy m)
-  in  Arr $ A.fill (A.constant (Z :. n)) r
+  in  Arr . run $ A.fill (A.constant (Z :. n)) r
 
 
 -- | Smart constructor for 'Trans'
@@ -172,13 +178,16 @@ dimC ((d, _), l, r) = l*d*r
 -- | Evaluate a transform by evaluating each component in sequence
 --
 eval :: Elt r => Tagged m (Trans r) -> Arr m r -> Arr m r
-eval = go . untag
+eval t = wrap (go (untag t))
   where
     go Id{}           = id
     go (TSnoc rest f) = go rest . evalC f
 
-evalC :: Elt r => TransC r -> Arr m r -> Arr m r
-evalC ((d, f), _, r) = wrap (unexpose r . f . expose d r)
+-- evalC :: Elt r => TransC r -> Arr m r -> Arr m r
+-- evalC ((d, f), _, r) = wrap (unexpose r . f . expose d r)
+
+evalC :: Elt r => TransC r -> Acc (Array DIM1 r) -> Acc (Array DIM1 r)
+evalC ((d, f), _, r) = unexpose r . f . expose d r
 
 evalM :: (Elt r, Monad monad) => TaggedT m monad (Trans r) -> monad (Arr m r -> Arr m r)
 evalM = fmap (eval . return) . untagT
@@ -281,4 +290,12 @@ mulDiag diag mat
   = A.generate (A.shape mat)
   $ \ix -> mat  ! ix
          * diag ! A.index1 (A.indexHead ix)
+
+
+-- Auxiliary functions
+-- --------------------
+
+infixr 0 $$
+($$) :: (b -> a) -> (c -> d -> b) -> c -> d -> a
+(f $$ g) x y = f (g x y)
 

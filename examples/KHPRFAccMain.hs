@@ -13,9 +13,13 @@ Example using KeyHomomorphicPRF with AT.
 
 module KHPRFAccMain where
 
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate
 import Crypto.Lol.Applications.Examples
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate
+import Data.Array.Accelerate.Debug
 import Data.Proxy
 
 main :: IO ()
-main = khprfRingMain (Proxy::Proxy AT)
+main = do
+  accInit
+  khprfRingMain (Proxy::Proxy AT)
+

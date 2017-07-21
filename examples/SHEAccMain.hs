@@ -13,9 +13,13 @@ Example using SymmSHE with AT.
 
 module SHEAccMain where
 
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate
 import Crypto.Lol.Applications.Examples
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate
+import Data.Array.Accelerate.Debug
 import Data.Proxy
 
 main :: IO ()
-main = sheMain (Proxy::Proxy AT)
+main = do
+  accInit
+  sheMain (Proxy::Proxy AT)
+

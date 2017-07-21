@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
@@ -27,11 +28,12 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension (
 ) where
 
 -- accelerate (& friends)
-import Data.Array.Accelerate                                        ( Acc, Array, DIM1, DIM2, Exp, Elt, FromIntegral, Z(..), (:.)(..) )
+import Data.Array.Accelerate                                        ( Array, DIM1, DIM2, Exp, Elt, FromIntegral, Z(..), (:.)(..) )
 import Data.Array.Accelerate.IO                                     as A
 import qualified Data.Array.Accelerate                              as A
 
 -- lol/lol-accelerate
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
 
@@ -58,7 +60,8 @@ twacePowDec
     -> Arr m  r
 twacePowDec (Arr arr) =
   let indices = proxy extIndicesPowDec (Proxy::Proxy '(m,m'))
-  in  Arr $ A.map (arr A.!!) indices
+      !go     = runN A.gather
+  in  Arr $ go indices arr
 
 
 -- | The "tweaked trace" function in the CRT basis of the m'`th cyclotomic ring
@@ -79,13 +82,15 @@ twaceCRT = do
       --
       tweak xs ys                     -- tweak = mhat * g' / (m'hat * g)
         = A.map (* hatRatioInv)
-        $ A.zipWith (*) (unArr xs) (unArr ys)
+        $ A.zipWith (*) xs ys
+
+      go ix xs ys zs                  -- take true trace after mul-by-tweak
+        = A.fold (+) zero
+        . A.gather ix
+        . A.zipWith (*) zs
+        $ tweak xs ys
   --
-  return $ \(Arr arr) ->              -- take true trace after mul-by-tweak
-    Arr . A.fold (+) zero
-        . A.gather indices
-        . A.zipWith (*) arr
-        $ tweak (embed gInv) g
+  return $ \(Arr arr) -> Arr $! runN go indices (unArr (embed gInv)) (unArr g) arr
 
 
 -- | Map an array in the powerful/decoding basis, representing an @O_m'@
@@ -97,7 +102,9 @@ coeffs :: forall m m' r. (m `Divides` m', Elt r)
        -> [Arr m r]
 coeffs (Arr arr) =
   let indices = proxy extIndicesCoeffs (Proxy::Proxy '(m,m'))
-  in  V.toList $ V.map (Arr . A.map (arr A.!!)) indices
+      !go     = runN (flip A.gather)
+  in
+  V.toList $ V.map (Arr . go arr) indices
 
 
 -- | A list of arrays representing the mod-@p@ CRT set of the extension
@@ -132,7 +139,7 @@ crtSetDec =
         index j i   = T.indexK twCRTs j (zmsToIdx i)
         f is (Z:.j) = hinv * trace' (P.sum [ index j i | i <- is ])
     in
-    P.map (Arr . A.use . A.fromFunction (Z:.phi) . f) cosets
+    P.map (Arr . A.fromFunction (Z:.phi) . f) cosets
 
 
 -- Reindexing arrays
@@ -146,27 +153,27 @@ crtSetDec =
 --
 extIndicesPowDec
     :: (m `Divides` m')
-    => Tagged '(m,m') (Acc (Array DIM1 Int))
+    => Tagged '(m,m') (Array DIM1 Int)
 extIndicesPowDec = do
-  idxs           <- T.extIndicesPowDec
-  return . A.use $! A.fromVectors (Z :. S.length idxs) idxs
+  idxs   <- T.extIndicesPowDec
+  return $! A.fromVectors (Z :. S.length idxs) idxs
 
 extIndicesCRT
     :: forall m m'. (m `Divides` m')
-    => Tagged '(m,m') (Acc (Array DIM2 Int))
+    => Tagged '(m,m') (Array DIM2 Int)
 extIndicesCRT = do
   let
       phi  = proxy totientFact (Proxy::Proxy m)
       phi' = proxy totientFact (Proxy::Proxy m')
       sh   = Z :. phi :. phi' `div` phi
   --
-  idxs           <- T.extIndicesCRT
-  return . A.use $! A.fromVectors sh idxs
+  idxs   <- T.extIndicesCRT
+  return $! A.fromVectors sh idxs
 
 extIndicesCoeffs
     :: (m `Divides` m')
-    => Tagged '(m,m') (V.Vector (Acc (Array DIM1 Int)))
+    => Tagged '(m,m') (V.Vector (Array DIM1 Int))
 extIndicesCoeffs = do
   idxss  <- T.extIndicesCoeffs
-  return $! V.map (\idxs -> A.use $! A.fromVectors (Z :. S.length idxs) idxs) idxss
+  return $! V.map (\idxs -> A.fromVectors (Z :. S.length idxs) idxs) idxss
 
