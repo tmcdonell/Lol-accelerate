@@ -39,7 +39,7 @@ import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
 
 import Data.Array.Accelerate.Crypto.Lol.CRTrans
 
-import Crypto.Lol.Prelude                                    as P hiding (FromIntegral)
+import Crypto.Lol.Prelude                                           as P hiding (FromIntegral)
 import Crypto.Lol.Types.FiniteField
 import Crypto.Lol.Types.ZmStar
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
