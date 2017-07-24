@@ -32,12 +32,10 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate (
 
 -- accelerate
 import Data.Array.Accelerate                                        as A hiding ((++), (==), lift)
-import Data.Array.Accelerate.Data.BigInt
 import qualified Data.Array.Accelerate                              as A
 
 -- numeric-prelude-accelerate
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
-import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain
 import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing ()
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
 import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental ()
@@ -69,7 +67,6 @@ import Crypto.Lol.Types.Proto
 -- other libraries
 import Control.Applicative
 import Data.Constraint
-import qualified Prelude
 
 
 -- | Accelerate-backed Tensor instance
@@ -294,6 +291,7 @@ instance (Protoable (IZipVector m r), Fact m, Elt r) => Protoable (AT m r) where
 
   fromProto x = toAT <$> ZV <$> fromProto x
 
+{--
 instance Ring.C Int128 where
   (*)         = (Prelude.*)
   fromInteger = Prelude.fromInteger
@@ -316,4 +314,5 @@ instance Additive.C (Exp Int128) where
 
 instance IntegralDomain.C (Exp Int128) where
   divMod = Prelude.divMod
+--}
 

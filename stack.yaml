@@ -26,11 +26,6 @@ packages:
     - 'accelerate-llvm-ptx'
 
 - location:
-    git:    https://github.com/tmcdonell/accelerate-bignum.git
-    commit: e827bff4b1a0602b950a7440fe89855f69efba0f
-  extra-dep: true
-
-- location:
     git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
     commit: 330f2d74a8fa135c0ca143d39c53a56f2eee1fc7
   extra-dep: true
@@ -74,9 +69,6 @@ flags:
   accelerate-llvm-ptx:
     debug: true
     nvvm:  false
-  accelerate-bignum:
-    llvm-cpu: true
-    llvm-ptx: false
 
 # Extra package databases containing global packages
 extra-package-dbs: []
