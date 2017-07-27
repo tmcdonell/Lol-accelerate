@@ -24,6 +24,5 @@ main :: IO ()
 main = do
   accInit
   argv <- getArgs
-  defaultMainWithArgs (defaultLolTests (Proxy::Proxy AT))
-    $ "--threads=1" : "--maximum-generated-tests=5" : argv
+  defaultMainWithArgs (defaultLolTests (Proxy::Proxy AT)) $ "--threads=1" : argv
 

@@ -32,7 +32,7 @@ main = do
 testOptions :: IO RunnerOptions
 testOptions = do
   argv  <- getArgs
-  mopts <- interpretArgs $ "--threads=1" : "--maximum-generated-tests=5" : argv
+  mopts <- interpretArgs $ "--threads=1" : argv
   case mopts of
     Left err       -> error err
     Right (opts,_) -> return opts
