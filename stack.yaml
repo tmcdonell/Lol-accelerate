@@ -7,8 +7,8 @@ packages:
 - '.'
 
 - location:
-    git:    https://github.com/AccelerateHS/accelerate.git
-    commit: a4e5d51334f303a32ee45979f342f8c391b43da3
+    git:    https://github.com/tmcdonell/accelerate.git
+    commit: 0a9e06d319403fc3e081bc62e7d0b7631b74a91c
   extra-dep: true
 
 - location:
@@ -17,8 +17,8 @@ packages:
   extra-dep: true
 
 - location:
-    git:    https://github.com/AccelerateHS/accelerate-llvm.git
-    commit: c042c80388dac6b15fdb17d1f4f66b10d6c47e0a
+    git:    https://github.com/tmcdonell/accelerate-llvm.git
+    commit: 866ae87e492c890b622a429a10eaec0691e5fb6c
   extra-dep: true
   subdirs:
     - 'accelerate-llvm'
@@ -58,7 +58,7 @@ extra-deps:
 flags:
   lol-accelerate:
     llvm-cpu: true
-    llvm-ptx: false
+    llvm-ptx: true
     with-apps: false
     with-execs: false
   accelerate:
