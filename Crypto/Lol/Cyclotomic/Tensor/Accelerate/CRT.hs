@@ -43,7 +43,7 @@ import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
 
 import Crypto.Lol.CRTrans
-import Crypto.Lol.Prelude                                    as P hiding (Matrix)
+import Crypto.Lol.Prelude                                           as P hiding (Matrix)
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
 
 -- other libraries
@@ -61,7 +61,8 @@ scalar =
   let n  = proxy totientFact (Proxy :: Proxy m)
       sh = A.constant (Z :. n)
   in
-  return $ \x -> Arr (run (A.fill sh x))
+  return $ \x -> let x' = A.the (A.unit x)
+                 in Arr (run (A.fill sh x'))
 
 
 -- | Embeds an array in the CRT basis of the m`th cyclotomic ring into an array

@@ -50,9 +50,10 @@ scalar r =
   let
       n  = proxy totientFact (Proxy :: Proxy m)
       sh = constant (Z :. n)
+      r' = the (unit r)
 
       f :: Exp DIM1 -> Exp r
-      f (unindex1 -> i) = i A.== 0 ? ( r , zero )
+      f (unindex1 -> i) = i A.== 0 ? ( r' , zero )
   in
   Arr $ run (generate sh f)
 
