@@ -109,9 +109,9 @@ instance Fact m => Traversable (AT m) where
 
 instance (Fact m, Additive (Exp r), Elt r) => Additive.C (AT m r) where
   zero   = AT $ repl zero
-  (+)    = wrap2 (Arr.wrap2 (A.zipWith (+)))
-  (-)    = wrap2 (Arr.wrap2 (A.zipWith (-)))
-  negate = wrap  (Arr.wrap  (A.map negate))
+  (+)    = wrap2 (Arr.wrap2 (runN (A.zipWith (+))))
+  (-)    = wrap2 (Arr.wrap2 (runN (A.zipWith (-))))
+  negate = wrap  (Arr.wrap  (runN (A.map negate)))
 
 instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF fp d) (AT m fp) where
   --

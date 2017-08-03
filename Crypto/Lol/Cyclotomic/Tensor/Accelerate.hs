@@ -1,16 +1,16 @@
+{-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
-{-# LANGUAGE PolyKinds             #-}
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
+{-# LANGUAGE TypeOperators         #-}
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate
@@ -32,27 +32,29 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate (
 
 -- accelerate
 import Data.Array.Accelerate                                        as A hiding ((++), (==), lift)
+import Data.Array.Accelerate.Array.Sugar                            as A ( Array(..) )
+import Data.Array.Accelerate.Array.Data                             as A
 import qualified Data.Array.Accelerate                              as A
 
 -- numeric-prelude-accelerate
-import qualified Data.Array.Accelerate.Algebra.Additive             as Additive
+import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
+import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
 import qualified Data.Array.Accelerate.Algebra.RealRing             as RealRing ()
-import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring
+import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 import qualified Data.Array.Accelerate.Algebra.Transcendental       as Transcendental ()
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
 -- lol-accelerate
+import Data.Array.Accelerate.Crypto.Lol.CRTrans                     ()
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               ()
 import Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic               ()
-import Data.Array.Accelerate.Crypto.Lol.CRTrans                     ()
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dispatch
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT                   as AT
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               as Arr
-import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec        as Dec
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension  as Ext
-import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL         as GL
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow        as Pow
 
 -- lol
@@ -77,8 +79,8 @@ instance Tensor AT where
                    , A.FromIntegral Int r
                    , A.Eq r                   -- entailEqT
                    , ZeroTestable.C (Exp r)   -- entalZTT, divGPow, divGDec
-                   , Additive.C (Exp r)       -- entailModuleT
-                   , Ring.C (Exp r)           -- entailModuleT
+                   , Additive (Exp r)         -- entailModuleT
+                   , Ring (Exp r)             -- entailModuleT
                    )
   type TRep AT r = Exp r
 
@@ -90,62 +92,59 @@ instance Tensor AT where
   entailShowT   = tag $ Sub Dict
   entailModuleT = tag $ Sub Dict
 
-  rep = return . A.constant
-
-  -- Make a raw value available for process in Accelerate
-  --constant x    = tag (A.constant x)
+  -- Make a raw value available for processing in Accelerate
+  rep           = return . A.constant
 
   -- Convert a scalar to a tensor in the powerful basis
-  scalarPow     = AT . Pow.scalar . A.constant
+  scalarPow     = AT . scalarPow'
 
   -- 'l' converts from decoding-basis representation to powerful-basis
   -- representation; 'lInv' is its inverse.
-  l             = AT.wrap GL.fL
-  lInv          = AT.wrap GL.fLInv
+  l             = AT.wrap fL'
+  lInv          = AT.wrap fLInv'
 
   -- Multiply by @g@ in the powerful/decoding basis
-  mulGPow       = AT.wrap GL.fGPow
-  mulGDec       = AT.wrap GL.fGDec
+  mulGPow       = AT.wrap mulGPow'
+  mulGDec       = AT.wrap mulGDec'
 
   -- Divide by @g@ in the powerful/decoding basis. This operation is only
   -- possible when the input is evenly divisible by @g@.
-  divGPow       = AT.wrapM GL.fGInvPow
-  divGDec       = AT.wrapM GL.fGInvDec
+  divGPow       = AT.wrapM divGPow'
+  divGDec       = AT.wrapM divGDec'
 
   -- A tuple of all the operations relating to the CRT basis, in a single
   -- 'Maybe' value for safety. Clients should typically use the corresponding
   -- top-level functions instead.
   crtFuncs      = (,,,,) <$> ((AT.)   <$> scalarCRT')
-                         <*> (AT.wrap <$> CRT.mulGCRT)
-                         <*> (AT.wrap <$> CRT.divGCRT)
-                         <*> (AT.wrap <$> CRT.fCRT)
-                         <*> (AT.wrap <$> CRT.fCRTInv)
+                         <*> (AT.wrap <$> mulGCRT')
+                         <*> (AT.wrap <$> divGCRT')
+                         <*> (AT.wrap <$> fCRT')
+                         <*> (AT.wrap <$> fCRTInv')
 
   -- Sample from the "tweaked" Gaussian error distribution @t*D@ in the decoding
   -- basis, where @D@ has scaled variance @v@.
   tGaussianDec  = fmap AT . Dec.tGaussian
 
-  -- Given the coefficient tensor of @e@ with respect to the decoding basis of
-  -- @R@, yield the (scaled) squared norm of @g_m \cdot e@ under the canonical
-  -- embedding, namely:
-  --
-  --   @ \hat{m}^{ -1 } \cdot || \sigma ( g_m \cdot e ) ||^2 @
-  gSqNormDec    = AT.unwrap Dec.gSqNorm
+  -- -- Given the coefficient tensor of @e@ with respect to the decoding basis of
+  -- -- @R@, yield the (scaled) squared norm of @g_m \cdot e@ under the canonical
+  -- -- embedding, namely:
+  -- --
+  -- --   @ \hat{m}^{ -1 } \cdot || \sigma ( g_m \cdot e ) ||^2 @
+  gSqNormDec    = AT.unwrap gSqNormDec'
 
   -- The @twace@ linear transformation, which is the same in both the powerful
   -- and decoding bases.
-  twacePowDec   = AT.wrap Ext.twacePowDec
+  twacePowDec   = AT.wrap twacePowDec'
 
   -- The @embed@ linear transformations, for the powerful and decoding bases
-  embedPow      = AT.wrap Pow.embed
-  embedDec      = AT.wrap Dec.embed
-
+  embedPow      = AT.wrap embedPow'
+  embedDec      = AT.wrap embedDec'
 
   -- A tuple of all the extension-related operations involving the CRT basis, in
   -- a single 'Maybe' value for safety. Clients should typically use the
   -- corresponding top-level functions instead.
-  crtExtFuncs   = (,) <$> (AT.wrap <$> Ext.twaceCRT)
-                      <*> (AT.wrap <$> CRT.embed)
+  crtExtFuncs   = (,) <$> (AT.wrap <$> twaceCRT')
+                      <*> (AT.wrap <$> embedCRT')
 
   -- May a tensor in the powerful/decoding/CRT basis, representing an @O_m'@
   -- element, to a vector of tensors representing @O_m@ elements in the same
@@ -159,20 +158,15 @@ instance Tensor AT where
   crtSetDec     = (AT <$>) <$> Ext.crtSetDec
 
   -- Auxiliary
-  fmapT f       = AT.wrap  $ Arr.wrap  (A.map f)
-  zipWithT f    = AT.wrap2 $ Arr.wrap2 (A.zipWith f)
+  fmapT f       = AT.wrap  $ Arr.wrap  (runN (A.map f))
+  zipWithT f    = AT.wrap2 $ Arr.wrap2 (runN (A.zipWith f))
 
-  unzipT xs     = (AT (Arr ls), AT (Arr rs))
-    where
-      AT (Arr xs') = toAT xs
-      ls           = runN (A.map A.fst) xs'
-      rs           = runN (A.map A.snd) xs'
-
-
-scalarCRT' :: (CRTrans mon (Exp r), Fact m, Elt r) => mon (r -> Arr m r)
-scalarCRT' = do
-  f <- CRT.scalar
-  return $ f . A.constant
+  unzipT (ZV zv)  = let (za,zb) = unzipIZV zv in (ZV za, ZV zb)
+  unzipT (AT at)  =
+    let Array sh adata                  = unArr at
+        AD_Pair (AD_Pair AD_Unit as) bs = adata
+    in
+    (AT (Arr (Array sh as)), AT (Arr (Array sh bs)))
 
 
 -- missing instances
@@ -187,6 +181,7 @@ instance (Reduce a (Exp b), Reduce a (Exp c), Elt b, Elt c) => Reduce a (Exp (b,
         c = reduce x :: Exp c
     in
     A.lift (b,c)
+
 {-
 -- EAC: Bogus instance since Int64 results in insufficient precision
 -- I fixed the need for this instance in Crypto.Lol.Tests.Default, see the

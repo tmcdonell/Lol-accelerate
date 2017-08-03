@@ -73,25 +73,25 @@ library
       Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic
 
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
+      Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec
+      Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dispatch
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow
 
-      Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-
   if flag(llvm-cpu)
     cpp-options:      -DACCELERATE_LLVM_NATIVE_BACKEND
     build-depends:
-        accelerate-llvm-native          >= 0.16
+        accelerate-llvm-native          >= 1.0.0.0
 
   if flag(llvm-ptx)
     cpp-options:      -DACCELERATE_LLVM_PTX_BACKEND
     build-depends:
-        accelerate-llvm-ptx             >= 0.16
+        accelerate-llvm-ptx             >= 1.0.0.0
 
 
 Benchmark bench-lol-acc

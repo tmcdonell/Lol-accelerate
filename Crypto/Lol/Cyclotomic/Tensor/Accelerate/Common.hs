@@ -4,6 +4,7 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RoleAnnotations     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -27,12 +28,12 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common (
   mulMat, mulDiag,
 
   -- utilities
-  wrap, wrap2,
+  wrap, wrap2, wrapM,
   ($$),
 
 ) where
 
-import Data.Array.Accelerate                                        ( Acc, Array, Exp, Elt, DIM1, DIM2, All(..), Z(..), (:.)(..), (!) )
+import Data.Array.Accelerate                                        ( Acc, Array, Vector, Exp, Elt, DIM2, All(..), Z(..), (:.)(..), (!) )
 import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
@@ -44,6 +45,7 @@ import Crypto.Lol.Prelude
 
 import Data.Singletons.Prelude                                      ( Sing(..), sing )
 
+import Control.Applicative
 import Control.Monad
 import Control.Monad.Random
 import Text.Printf
@@ -58,7 +60,7 @@ import Text.Printf
 -- XXX: Why do we store this as a regular 1D array? Need to properly understand
 --      what 'expose' and 'unexpose' are doing.
 --
-data Arr (m :: Factored) r = Arr { unArr :: !(Array DIM1 r) }
+data Arr (m :: Factored) r = Arr { unArr :: !(Vector r) }
   deriving Show
 
 -- Although the first argument is phantom, it affects the representation.
@@ -88,22 +90,25 @@ instance (Elt r, Random r, Fact m) => Random (Arr m r) where
 
 {-# INLINE wrap #-}
 wrap :: (Elt a, Elt b)
-     => (Acc (Array DIM1 a) -> Acc (Array DIM1 b))
-     -> Arr m  a
-     -> Arr m' b
-wrap f = Arr . go . unArr
-  where
-    !go = runN f
+     => (Vector a -> Vector b)
+     -> Arr ma a
+     -> Arr mb b
+wrap f = Arr . f . unArr
 
 {-# INLINE wrap2 #-}
 wrap2 :: (Elt a, Elt b, Elt c)
-      => (Acc (Array DIM1 a) -> Acc (Array DIM1 b) -> Acc (Array DIM1 c))
+      => (Vector a -> Vector b -> Vector c)
       -> Arr ma a
       -> Arr mb b
       -> Arr mc c
-wrap2 f (Arr xs) (Arr ys) = Arr $ go xs ys
-  where
-    !go = runN f
+wrap2 f (Arr xs) (Arr ys) = Arr $ f xs ys
+
+{-# INLINE wrapM #-}
+wrapM :: (Monad monad, Elt a, Elt b)
+      => (Vector a -> monad (Vector b))
+      -> Arr ma a
+      -> monad (Arr mb b)
+wrapM f (Arr xs) = Arr <$> f xs
 
 
 -- | 'Tensorable represents an "atomic" transform over the base type 'r' that
@@ -177,26 +182,27 @@ dimC ((d, _), l, r) = l*d*r
 
 -- | Evaluate a transform by evaluating each component in sequence
 --
-eval :: Elt r => Tagged m (Trans r) -> Arr m r -> Arr m r
-eval t = wrap (go (untag t))
+eval :: Elt r
+     => Tagged m (Trans r)
+     -> Tagged m (Acc (Vector r) -> Acc (Vector r))
+eval t = tag (go (untag t))
   where
     go Id{}           = id
     go (TSnoc rest f) = go rest . evalC f
 
--- evalC :: Elt r => TransC r -> Arr m r -> Arr m r
--- evalC ((d, f), _, r) = wrap (unexpose r . f . expose d r)
-
-evalC :: Elt r => TransC r -> Acc (Array DIM1 r) -> Acc (Array DIM1 r)
+evalC :: Elt r => TransC r -> Acc (Vector r) -> Acc (Vector r)
 evalC ((d, f), _, r) = unexpose r . f . expose d r
 
-evalM :: (Elt r, Monad monad) => TaggedT m monad (Trans r) -> monad (Arr m r -> Arr m r)
+evalM :: (Elt r, Monad monad)
+      => TaggedT m monad (Trans r)
+      -> monad (Tagged m (Acc (Vector r) -> Acc (Vector r)))
 evalM = fmap (eval . return) . untagT
 
 
 -- | Map the innermost dimension to a 2D array with innermost dimension 'd' for
 -- performing 'I_l' ⊗ 'I_r' transformation.
 --
-expose :: Elt r => Int -> Int -> Acc (Array DIM1 r) -> Acc (Array DIM2 r)
+expose :: Elt r => Int -> Int -> Acc (Vector r) -> Acc (Array DIM2 r)
 expose d r arr = res
   where
     res | r == 1    = A.reshape sh arr          -- NOP if arr is manifest
@@ -213,7 +219,7 @@ expose d r arr = res
 
 -- | Inverse of 'expose'
 --
-unexpose :: Elt r => Int -> Acc (Array DIM2 r) -> Acc (Array DIM1 r)
+unexpose :: Elt r => Int -> Acc (Array DIM2 r) -> Acc (Vector r)
 unexpose 1 arr = A.flatten arr                  -- NOP if arr is manifest
 unexpose r arr = A.backpermute sh f arr
   where
@@ -283,7 +289,7 @@ mulMat arr brr
 --
 mulDiag
     :: (Ring (Exp r), Elt r)
-    => Acc (Array DIM1 r)
+    => Acc (Vector r)
     -> Acc (Array DIM2 r)
     -> Acc (Array DIM2 r)
 mulDiag diag mat

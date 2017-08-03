@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
@@ -23,10 +24,13 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec (
   embed,
   tGaussian, gSqNorm,
 
+  embed',
+  baseIndicesDec,
+
 ) where
 
 -- accelerate
-import Data.Array.Accelerate                                        ( Array, DIM1, Exp, Elt, FromIntegral, Z(..), (:.)(..), All(..), (?) )
+import Data.Array.Accelerate                                        ( Acc, Scalar, Vector, Exp, Elt, FromIntegral, Z(..), (:.)(..), All(..), (?) )
 import Data.Array.Accelerate.IO                                     as A
 import qualified Data.Array.Accelerate                              as A
 
@@ -51,22 +55,20 @@ import qualified Data.Vector.Unboxed                                as U
 -- array in the decoding basis of the m'`th cyclotomic ring, when @m | m'@.
 --
 embed :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r)
-      => Arr m  r
-      -> Arr m' r
-embed (Arr arr) =
-  let
-      indices = proxy baseIndicesDec (Proxy::Proxy '(m,m'))
-      go xs   = A.map f
-        where
-          f ib =
-            let (i,b) = A.unlift ib
-                x     = xs A.!! i               -- XXX: check this is not lifted out of (?)
-            in i A.< zero ? ( zero              -- [See note: baseIndicesDec]
-             , b          ? ( P.negate x
-             , {- else -}     x
+      => Tagged '(m,m') (Acc (Vector r) -> Acc (Vector r))
+embed = tag (embed' (A.use indices))
+  where
+    indices = proxy baseIndicesDec (Proxy::Proxy '(m,m'))
+
+embed' :: (Additive (Exp r), Elt r) => Acc (Vector (Int,Bool)) -> Acc (Vector r) -> Acc (Vector r)
+embed' indices arr = A.map f indices
+  where
+    f ixb = let (ix,b) = A.unlift ixb
+                x      = arr A.!! ix              -- XXX: check this is not lifted out of (?)
+            in ix A.< zero ? ( zero               -- [See note: baseIndicesDec]
+             , b           ? ( P.negate x
+             , {- else -}      x
              ))
-  in
-  Arr $! runN go arr indices
 
 
 -- | Given @v=r^2@, yields the decoding-basis coefficients of a sample from the
@@ -76,7 +78,7 @@ embed (Arr arr) =
 --
 tGaussian
     :: forall m v r random. ( Fact m, MonadRandom random, ToRational v, Ord r, Random r, Transcendental r
-                            , Transcendental (Exp r), FromIntegral Int r, Elt r)
+                            , Transcendental (Exp r), FromIntegral Int r, Elt r )
     => v
     -> random (Arr m r)
 tGaussian v = do
@@ -84,16 +86,16 @@ tGaussian v = do
       m   = proxy valueFact   (Proxy::Proxy m)
       n   = proxy totientFact (Proxy::Proxy m)
       rad = proxy radicalFact (Proxy::Proxy m)
+      fE' = proxy fE          (Proxy::Proxy m)
   --
   x <- A.fromList (Z :. n) <$> realGaussians (v * fromIntegral (m `div` rad)) n
-  return $ fE (Arr x)
+  return . Arr $ runN fE' x
 
 
 -- | The @E_m@ transformation for an arbitrary @m@.
 --
 fE :: (Fact m, Transcendental (Exp r), FromIntegral Int r, Elt r)
-   => Arr m r
-   -> Arr m r
+   => Tagged m (Acc (Vector r) -> Acc (Vector r))
 fE = eval $ fTensor $ ppTensor pE
 
 -- | The @E_p@ transformation for a prime @p@.
@@ -135,17 +137,14 @@ realGaussians var n
 --
 --   @\hat{m}^{-1} \cdot || \sigma ( g_m - \cdot e) || ^ 2@
 --
-gSqNorm :: (Fact m, Ring (Exp r), Elt r) => Arr m r -> r
-gSqNorm e =
-  let e' = fGram e
-      r  = A.foldAll (+) zero $$ A.zipWith (*)
-  in
-  runN r (unArr e) (unArr e') `A.indexArray` Z
+gSqNorm :: forall m r. (Fact m, Ring (Exp r), Elt r) => Tagged m (Acc (Vector r) -> Acc (Scalar r))
+gSqNorm = tag $ \e ->
+  A.foldAll (+) zero $ A.zipWith (*) e (proxy fGram (Proxy::Proxy m) e)
 
 
 -- | Multiply by @\hat{m}@ times the Gram matrix of decoding basis @R^vee@
 --
-fGram :: (Fact m, Ring (Exp r), Elt r) => Arr m r -> Arr m r
+fGram :: (Fact m, Ring (Exp r), Elt r) => Tagged m (Acc (Vector r) -> Acc (Vector r))
 fGram = eval $ fTensor $ ppTensor pGramDec
 
 -- | Multiply by the (scaled) Gram matrix of decoding basis: @I_{p-1} + all-1s@
@@ -186,7 +185,7 @@ pGramDec =
 --
 baseIndicesDec
     :: forall m m'. (m `Divides` m')
-    => Tagged '(m,m') (Array DIM1 (Int,Bool))
+    => Tagged '(m,m') (Vector (Int,Bool))
 baseIndicesDec = do
   (ix,b) <- U.unzip
           . U.map (maybe (-1,0) (\(i,b) -> (i, fromBool b)))

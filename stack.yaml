@@ -1,7 +1,7 @@
 # For more information, see: http://docs.haskellstack.org/en/stable/yaml_configuration.html
 # vim: nospell
 
-resolver: lts-8.0
+resolver: lts-9.0
 
 packages:
 - '.'
@@ -32,7 +32,7 @@ packages:
 
 - location:
     git:    https://github.com/tmcdonell/Lol.git
-    commit: a2226a2dea9bb90576d82c0a6f452ff3a02bb534
+    commit: 2979119b1767def6acb1069a440051a853167bef
   extra-dep: true
   subdirs:
     - 'lol'
@@ -44,21 +44,15 @@ packages:
   extra-dep: true
 
 extra-deps:
-- 'chaselev-deque-0.5.0.5'
-- 'libffi-0.1'
-- 'llvm-hs-4.1.0.0'
-- 'llvm-hs-pure-4.1.0.0'
-- 'non-negative-0.1.1'
-- 'numeric-prelude-0.4.2'
 - 'nvvm-0.7.5.2'
 - 'tagged-transformer-0.8'
-- 'unique-0'
+- 'repa-3.4.1.2'
 
 # Override default flag values for local packages and extra-deps
 flags:
   lol-accelerate:
     llvm-cpu: true
-    llvm-ptx: true
+    llvm-ptx: false
     with-apps: false
     with-execs: false
   accelerate:

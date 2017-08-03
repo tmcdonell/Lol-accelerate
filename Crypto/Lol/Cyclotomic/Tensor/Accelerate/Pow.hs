@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
@@ -23,6 +24,9 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow (
   embed,
   powBasis,
 
+  embed',
+  baseIndicesPow,
+
 ) where
 
 -- accelerate & friends
@@ -45,35 +49,30 @@ import qualified Data.Vector.Unboxed                                as U
 -- | Embeds a scalar into a powerful-basis representation, tagged by the
 -- cyclotomic index.
 --
-scalar :: forall m r. (Fact m, Additive (Exp r), Elt r) => Exp r -> Arr m r
-scalar r =
-  let
-      n  = proxy totientFact (Proxy :: Proxy m)
+scalar :: forall m r. (Fact m, Additive (Exp r), Elt r)
+       => Tagged m (Acc (Scalar r) -> Acc (Vector r))
+scalar =
+  let n  = proxy totientFact (Proxy :: Proxy m)
       sh = constant (Z :. n)
-      r' = the (unit r)
-
-      f :: Exp DIM1 -> Exp r
-      f (unindex1 -> i) = i A.== 0 ? ( r' , zero )
   in
-  Arr $ run (generate sh f)
+  tag $ \r -> generate sh (\(unindex1 -> i) -> i A.== 0 ? ( the r , zero ))
 
 
 -- | Embeds an array in the powerful basis of the m`th cyclotomic ring, to an
 -- array in the powerful basis of the m'`th cyclotomic ring, when @m | m'@
 --
 embed :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r)
-      => Arr m  r
-      -> Arr m' r
-embed (Arr arr) =
-  let
-      indices = proxy baseIndicesPow (Proxy::Proxy '(m,m'))
-      go xs   = A.map f
-        where
-          f jix   =
-            let (j,ix) = A.unlift jix
-            in  j A.== zero ? ( xs A.!! ix , zero )
-  in
-  Arr $! runN go arr indices
+      => Tagged '(m,m') (Acc (Vector r) -> Acc (Vector r))
+embed = tag $ embed' (A.use indices)
+  where
+    indices = proxy baseIndicesPow (Proxy::Proxy '(m,m'))
+
+embed' :: (Additive (Exp r), Elt r) => Acc (Vector (Int,Int)) -> Acc (Vector r) -> Acc (Vector r)
+embed' indices arr = A.map f indices
+  where
+    f jix = let (j,ix) = A.unlift jix
+            in  j A.== zero ? ( arr A.!! ix, zero )
+
 
 -- | The powerful extension basis, w.r.t. the powerful basis. Outputs a list of
 -- arrays in @O_m'@ that are an @O_m@ basis for @O_m'@.

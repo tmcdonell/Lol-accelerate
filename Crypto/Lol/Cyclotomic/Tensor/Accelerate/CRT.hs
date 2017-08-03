@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
@@ -25,10 +26,13 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT (
   gCRT, gInvCRT,
   mulGCRT, divGCRT,
 
+  embed',
+  baseIndicesCRT,
+
 ) where
 
 -- accelerate (& friends)
-import Data.Array.Accelerate                                        ( Acc, Array, DIM1, DIM2, Exp, Elt, Z(..), (:.)(..) )
+import Data.Array.Accelerate                                        ( Acc, Array, Scalar, Vector, DIM1, DIM2, Exp, Elt, Z(..), (:.)(..) )
 import Data.Array.Accelerate.IO                                     as A
 import qualified Data.Array.Accelerate                              as A
 
@@ -38,7 +42,6 @@ import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralD
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 
 -- lol/lol-accelerate
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
 
@@ -55,55 +58,53 @@ import qualified Data.Vector.Storable                               as S
 -- | Embeds a scalar into the CRT basis (when it exists)
 --
 scalar
-    :: forall monad m r. (Fact m, Elt r, Monad monad)
-    => monad (Exp r -> Arr m r)
+    :: forall m r. (Fact m, Elt r)
+    => Tagged m (Acc (Scalar r) -> Acc (Vector r))
 scalar =
   let n  = proxy totientFact (Proxy :: Proxy m)
       sh = A.constant (Z :. n)
   in
-  return $ \x -> let x' = A.the (A.unit x)
-                 in Arr (run (A.fill sh x'))
+  tag $ A.fill sh . A.the
 
 
 -- | Embeds an array in the CRT basis of the m`th cyclotomic ring into an array
 -- in the CRT basis of the m'`th cyclotomic ring, when @m | m'@.
 --
 embed :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp r), Elt r)
-      => monad (Arr m r -> Arr m' r)
+      => monad (Tagged '(m,m') (Acc (Vector r) -> Acc (Vector r)))
 embed = do
   -- first check existence of the CRT transform in m'
   _ <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp r))
   let indices = proxy baseIndicesCRT (Proxy::Proxy '(m,m'))
-  return $ \(Arr arr) -> Arr $! runN A.gather indices arr
+  return . tag $ embed' (A.use indices)
+
+embed' :: Elt r => Acc (Vector Int) -> Acc (Vector r) -> Acc (Vector r)
+embed' = A.gather
 
 
 -- | Multiply by @g_m@ in the CRT basis (when it exists)
 --
 mulGCRT
     :: forall monad m r. (Fact m, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
-    => monad (Arr m r -> Arr m r)
-mulGCRT =
-  let go :: Arr m r -> Arr m r -> Arr m r
-      go x y = wrap2 (A.zipWith (*)) x y
-  in
-  go <$> gCRT
+    => monad (Tagged m (Acc (Vector r) -> Acc (Vector r)))
+mulGCRT = do
+  g <- gCRT :: monad (Tagged m (Acc (Vector r)))
+  return . tag $ A.zipWith (*) (untag g)
 
 -- | Divide by @g_m@ in the CRT basis (when it exists)
 --
 divGCRT
     :: forall monad m r. (Fact m, CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int, A.FromIntegral Int r, Elt r)
-    => monad (Arr m r -> Arr m r)
-divGCRT =
-  let go :: Arr m r -> Arr m r -> Arr m r
-      go x y = wrap2 (A.zipWith (*)) x y
-  in
-  go <$> gInvCRT
+    => monad (Tagged m (Acc (Vector r) -> Acc (Vector r)))
+divGCRT = do
+  gInv <- gInvCRT :: monad (Tagged m (Acc (Vector r)))
+  return . tag $ A.zipWith (*) (untag gInv)
 
 
 -- | The coefficient vector of @g@ in the CRT basis (when it exists)
 --
 gCRT :: (Fact m, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
-     => monad (Arr m r)
+     => monad (Tagged m (Acc (Vector r)))
 gCRT = wrapVector gCRTM
 
 gCRTM
@@ -135,7 +136,7 @@ gCRTPrime = do
 --
 gInvCRT
     :: (Fact m, CRTrans monad (Exp r), A.FromIntegral Int r, Elt r, CRTIndex (Exp r) ~ Exp Int)
-    => monad (Arr m r)
+    => monad (Tagged m (Acc (Vector r)))
 gInvCRT = wrapVector gInvCRTM
 
 gInvCRTM
@@ -158,7 +159,7 @@ gInvCRTPrime = do
   p               <- pureT valuePrime
   (wPow, phatInv) <- crtInfo
   let
-      -- TLM: At the moment this is cutoff is dictated more by Accelerate's
+      -- TLM: At the moment this cutoff is dictated more by Accelerate's
       --      optimisation stage rather than performance considerations ):
       f | p <= 2    = const one
         | p < 16    = f_seq     -- TODO: tune me
@@ -179,7 +180,7 @@ gInvCRTPrime = do
       f_par :: Exp DIM2 -> Exp r
       f_par ix = phatInv * arr A.! A.indexTail ix
 
-      arr :: Acc (Array DIM1 r)
+      arr :: Acc (Vector r)
       arr = A.fold (+) zero
           $ A.generate (A.constant (Z :. p-1 :. p-1))
                        (\ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
@@ -190,7 +191,8 @@ gInvCRTPrime = do
 
 -- | The Chinese Remainder Theorem exists iff CRT exists for all prime powers
 --
-fCRT :: (Fact m, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int) => monad (Arr m r -> Arr m r)
+fCRT :: (Fact m, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
+     => monad (Tagged m (Acc (Vector r) -> Acc (Vector r)))
 fCRT = evalM (fTensor ppCRT)
 
 -- | The inverse Chinese Remainder theorem. Exists iff CRT exists for all prime
@@ -198,7 +200,7 @@ fCRT = evalM (fTensor ppCRT)
 --
 fCRTInv
     :: forall monad m r. (Fact m, CRTrans monad (Exp r), Elt r, CRTIndex (Exp r) ~ Exp Int)
-    => monad (Arr m r -> Arr m r)
+    => monad (Tagged m (Acc (Vector r) -> Acc (Vector r)))
 fCRTInv = do
   (_, mhatInv) <- proxyT crtInfo (Proxy :: Proxy m) :: monad (CRTInfo (Exp r))
   let
@@ -321,7 +323,7 @@ ppTwid inv = do
       pp@(p,e) = proxy ppPPow (Proxy :: Proxy pp)
       ppval    = valuePP pp
 
-      diag :: Acc (Array DIM1 r)
+      diag :: Acc (Vector r)
       diag = A.generate (A.constant (Z :. ppval))
            $ \ix -> let (iq,ir)         = A.indexHead ix `divMod` A.constant p
                         pow'            = ir * digitRev p (e-1) iq
@@ -342,7 +344,7 @@ ppTwidHat inv = do
       pp@(p,e) = proxy ppPPow (Proxy :: Proxy pp)
       pptot    = totientPP pp
 
-      diag :: Acc (Array DIM1 r)
+      diag :: Acc (Vector r)
       diag = A.generate (A.constant (Z :. pptot))
            $ \ix -> let (iq,ir)         = A.indexHead ix `divMod` A.constant (p-1)
                         pow'            = (ir+1) * digitRev p (e-1) iq
@@ -443,7 +445,7 @@ butterfly = trans (2, flap)
 wrapVector
     :: forall monad m r. (Monad monad, Fact m, Ring (Exp r), Elt r)
     => TaggedT m monad (Matrix r)
-    -> monad (Arr m r)
+    -> monad (Tagged m (Acc (Vector r)))
 wrapVector v = do
   vmat <- proxyT v (Proxy :: Proxy m)
   let n  = proxy totientFact (Proxy :: Proxy m)
@@ -452,7 +454,7 @@ wrapVector v = do
       f :: Exp DIM1 -> Exp r
       f ix = indexM vmat (A.lift (ix :. A.constant 0))
   --
-  return . Arr $ run (A.generate sh f)
+  return . tag $ A.generate sh f
 
 
 -- Reindexing functions
@@ -522,7 +524,7 @@ digitRev p e j
 --
 baseIndicesCRT
     :: (m `Divides` m')
-    => Tagged '(m,m') (Array DIM1 Int)
+    => Tagged '(m,m') (Vector Int)
 baseIndicesCRT = do
   idxs   <- T.baseIndicesCRT
   return $! A.fromVectors (Z :. S.length idxs) idxs

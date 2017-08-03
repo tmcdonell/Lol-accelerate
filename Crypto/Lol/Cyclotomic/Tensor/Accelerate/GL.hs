@@ -24,7 +24,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL (
 
 ) where
 
-import Data.Array.Accelerate                                        ( Acc, Array, DIM0, DIM1, DIM2, Exp, Elt, Z(..), (:.)(..) )
+import Data.Array.Accelerate                                        ( Acc, Array, Scalar, Vector, DIM2, Exp, Elt, Z(..), (:.)(..) )
 import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.ToInteger            as ToInteger ()
@@ -35,7 +35,6 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 import Data.Array.Accelerate.Algebra.ZeroTestable                   ( isZero )
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Prelude                                           hiding ( ZeroTestable, isZero )
 
 
@@ -45,23 +44,23 @@ type ZeroTestable a = ZeroTestable.C a
 -- | Arbitrary-index @L@ transform, which converts from decoding-basis to
 -- powerful-basis representation
 --
-fL :: (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
+fL :: (Fact m, Additive (Exp r), Elt r) => Tagged m (Acc (Vector r) -> Acc (Vector r))
 fL = eval $ fTensor $ ppTensor pL
 
 -- | Arbitrary-index @L^{-1}@ transform, which converts from powerful-basis to
 -- decoding-basis representation
 --
-fLInv :: (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
+fLInv :: (Fact m, Additive (Exp r), Elt r) => Tagged m (Acc (Vector r) -> Acc (Vector r))
 fLInv = eval $ fTensor $ ppTensor pLInv
 
 -- | Arbitrary-index multiplication by @g_m@ in the powerful basis
 --
-fGPow :: (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
+fGPow :: (Fact m, Additive (Exp r), Elt r) => Tagged m (Acc (Vector r) -> Acc (Vector r))
 fGPow = eval $ fTensor $ ppTensor pGPow
 
 -- | Arbitrary-index multiplication by @g_m@ in the decoding basis
 --
-fGDec :: (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
+fGDec :: (Fact m, Additive (Exp r), Elt r) => Tagged m (Acc (Vector r) -> Acc (Vector r))
 fGDec = eval $ fTensor $ ppTensor pGDec
 
 -- | Arbitrary-index division by @g_m@ in the powerful basis. Outputs 'Nothing'
@@ -71,8 +70,7 @@ fGDec = eval $ fTensor $ ppTensor pGDec
 --
 fGInvPow
     :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), A.FromIntegral Int r, Elt r)
-    => Arr m r
-    -> Maybe (Arr m r)
+    => Tagged m (Acc (Vector r) -> Acc (Scalar Bool, Vector r))
 fGInvPow = wrapGInv pGInvPow
 
 -- | Arbitrary-index division by @g_m@ in the decoding basis. Outputs 'Nothing'
@@ -82,8 +80,7 @@ fGInvPow = wrapGInv pGInvPow
 --
 fGInvDec
     :: (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), A.FromIntegral Int r, Elt r)
-    => Arr m r
-    -> Maybe (Arr m r)
+    => Tagged m (Acc (Vector r) -> Acc (Scalar Bool, Vector r))
 fGInvDec = wrapGInv pGInvDec
 
 
@@ -113,6 +110,7 @@ pLInv = pWrap $ \_ arr ->
              in u - v
   in
   A.generate (A.shape arr) f
+
 
 -- Multiplication by g_p = 1 - zeta_p in the power basis.
 --
@@ -153,32 +151,38 @@ pGDec = pWrap $ \_ arr ->
 wrapGInv
     :: forall m r. (Fact m, IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
     => (forall p. Prime p => Tagged p (Trans r))
-    -> Arr m r
-    -> Maybe (Arr m r)
-wrapGInv gInv arr =
+    -> Tagged m (Acc (Vector r) -> Acc (Scalar Bool, Vector r))
+wrapGInv gInv =
   let
       fGInv = eval $ fTensor $ ppTensor gInv
       rad   = fromIntegral (proxy oddRadicalFact (Proxy :: Proxy m))
   in
-  fGInv arr `divCheck` rad
+  tag $ \arr -> (proxy fGInv (Proxy::Proxy m)) arr `divCheck` rad
 
 divCheck
-    :: forall m r. (IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
-    => Arr m r
+    :: forall r. (IntegralDomain (Exp r), ZeroTestable (Exp r), Elt r)
+    => Acc (Vector r)
     -> Exp r
-    -> Maybe (Arr m r)
+    -> Acc (Scalar Bool, Vector r)
 divCheck arr den =
+  let (q,r) = A.unzip $ A.map (\x -> A.lift (x `divMod` den)) arr
+      ok    = A.all isZero r
+  in
+  A.lift (ok, q)
+
+{--
   let
-      check :: Acc (Array DIM1 r) -> Acc (Array DIM0 Bool, Array DIM1 r)
+      check :: Acc (Vector r) -> Acc (Scalar Bool, Vector r)
       check xs = let (q,r) = A.unzip $ A.map (\x -> A.lift (x `divMod` den)) xs
                      ok    = A.all isZero r
                  in
                  A.lift (ok, q)
-      (ok',q') = runN check (unArr arr)
+      (ok',q') = runN check arr
   in
   if A.indexArray ok' Z
-     then Just (Arr q')
+     then Just q'
      else Nothing
+--}
 
 -- Doesn't do division by (odd) p
 --

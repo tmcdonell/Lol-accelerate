@@ -25,10 +25,12 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension (
   coeffs,
   crtSetDec,
 
+  extIndicesPowDec,
+
 ) where
 
 -- accelerate (& friends)
-import Data.Array.Accelerate                                        ( Array, DIM1, DIM2, Exp, Elt, FromIntegral, Z(..), (:.)(..) )
+import Data.Array.Accelerate                                        ( Acc, Array, Vector, DIM1, DIM2, Exp, Elt, FromIntegral, Z(..), (:.)(..) )
 import Data.Array.Accelerate.IO                                     as A
 import qualified Data.Array.Accelerate                              as A
 
@@ -56,12 +58,10 @@ import qualified Data.Vector.Storable                               as S
 --
 twacePowDec
     :: forall m m' r. (m `Divides` m', Elt r)
-    => Arr m' r
-    -> Arr m  r
-twacePowDec (Arr arr) =
-  let indices = proxy extIndicesPowDec (Proxy::Proxy '(m,m'))
-      !go     = runN A.gather
-  in  Arr $ go indices arr
+    => Tagged '(m,m') (Acc (Vector r) -> Acc (Vector r))
+twacePowDec = tag $ A.gather (A.use indices)
+  where
+    indices = proxy extIndicesPowDec (Proxy::Proxy '(m,m'))
 
 
 -- | The "tweaked trace" function in the CRT basis of the m'`th cyclotomic ring
@@ -69,11 +69,11 @@ twacePowDec (Arr arr) =
 --
 twaceCRT
     :: forall monad m m' r. (m `Divides` m', CRTIndex (Exp r) ~ Exp Int, CRTrans monad (Exp r), FromIntegral Int r, Elt r)
-    => monad (Arr m' r -> Arr m r)
+    => monad (Tagged '(m,m') (Acc (Vector r) -> Acc (Vector r)))
 twaceCRT = do
-  g             <- CRT.gCRT     :: monad (Arr m' r)
-  gInv          <- CRT.gInvCRT  :: monad (Arr m r)
-  embed         <- CRT.embed    :: monad (Arr m r -> Arr m' r)
+  g             <- CRT.gCRT     :: monad (Tagged m' (Acc (Vector r)))
+  gInv          <- CRT.gInvCRT  :: monad (Tagged m  (Acc (Vector r)))
+  embed         <- CRT.embed    :: monad (Tagged '(m,m') (Acc (Vector r) -> Acc (Vector r)))
   (_, m'hatInv) <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp r))
   let
       vhf         = proxy valueHatFact  (Proxy::Proxy m)
@@ -84,13 +84,13 @@ twaceCRT = do
         = A.map (* hatRatioInv)
         $ A.zipWith (*) xs ys
 
-      go ix xs ys zs                  -- take true trace after mul-by-tweak
+      go arr                          -- take true trace after mul-by-tweak
         = A.fold (+) zero
-        . A.gather ix
-        . A.zipWith (*) zs
-        $ tweak xs ys
+        . A.gather (A.use indices)
+        . A.zipWith (*) arr
+        $ tweak (untag embed (untag gInv)) (untag g)
   --
-  return $ \(Arr arr) -> Arr $! runN go indices (unArr (embed gInv)) (unArr g) arr
+  return (tag go)
 
 
 -- | Map an array in the powerful/decoding basis, representing an @O_m'@
