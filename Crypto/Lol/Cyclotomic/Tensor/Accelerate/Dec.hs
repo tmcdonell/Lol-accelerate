@@ -105,7 +105,7 @@ pE :: forall p r. (Prime p, Transcendental (Exp r), A.FromIntegral Int r, Elt r)
 pE =
   let
       pval = proxy valuePrime (Proxy::Proxy p)
-      mat  = A.generate (A.constant (Z :. pval-1 :. pval -1))
+      mat  = A.generate (A.constant (Z :. pval-1 :. pval-1))
            $ \ix -> let Z :. i :. j = A.unlift ix :: Z :. Exp Int :. Exp Int
                         theta       = 2 * pi * A.fromIntegral (i*(j+1)) / P.fromIntegral pval
                         q           = j A.< A.constant (pval `div` 2)
