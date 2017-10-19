@@ -30,6 +30,7 @@ import Data.Array.Accelerate                                        ( Exp, Elt, 
 import qualified Data.Array.Accelerate                              as A
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim                 ( Dispatch )
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               hiding ( wrap, wrap2 )
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common     as Arr
 
@@ -82,7 +83,7 @@ instance Show r => Show (AT m r) where
   show (ZV z) = show (unIZipVector z)
   show (AT a) = show (unArr a)
 
-instance (P.Eq r, A.Eq r) => P.Eq (AT m r) where
+instance (P.Eq r, A.Eq r, Dispatch r) => P.Eq (AT m r) where
   ZV a == ZV b = a == b
   xs   == ys   = unwrap2 (==) xs ys
 

@@ -27,6 +27,9 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension (
 
   extIndicesPowDec,
 
+  -- prim
+  twacePowDec',
+
 ) where
 
 -- accelerate (& friends)
@@ -37,7 +40,9 @@ import qualified Data.Array.Accelerate                              as A
 -- lol/lol-accelerate
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim                 ( Dispatch )
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as CRT
+import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim       as P
 
 import Data.Array.Accelerate.Crypto.Lol.CRTrans
 
@@ -57,11 +62,15 @@ import qualified Data.Vector.Storable                               as S
 -- the m'`th cyclotomic ring to the m`th cyclotomic ring when @m | m'@.
 --
 twacePowDec
-    :: forall m m' r. (m `Divides` m', Elt r)
-    => Tagged '(m,m') (Acc (Vector r) -> Acc (Vector r))
-twacePowDec = tag $ A.gather (A.use indices)
+    :: forall m m' r. (m `Divides` m', Dispatch r)
+    => Arr m  r
+    -> Arr m' r
+twacePowDec = wrap $ P.twacePowDec' indices
   where
     indices = proxy extIndicesPowDec (Proxy::Proxy '(m,m'))
+
+twacePowDec' :: Elt r => Acc (Vector Int) -> Acc (Vector r) -> Acc (Vector r)
+twacePowDec' = A.gather
 
 
 -- | The "tweaked trace" function in the CRT basis of the m'`th cyclotomic ring

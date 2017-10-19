@@ -26,8 +26,10 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT (
   gCRT, gInvCRT,
   mulGCRT, divGCRT,
 
-  embed',
   baseIndicesCRT,
+
+  -- prim
+  embedCRT',
 
 ) where
 
@@ -42,8 +44,11 @@ import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralD
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 
 -- lol/lol-accelerate
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               hiding ( scalar )
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim                 ( Dispatch )
+import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim       as P
 
 import Crypto.Lol.CRTrans
 import Crypto.Lol.Prelude                                           as P hiding (Matrix)
@@ -57,29 +62,32 @@ import qualified Data.Vector.Storable                               as S
 
 -- | Embeds a scalar into the CRT basis (when it exists)
 --
+-- NOTE: This does not get pre-compiled.
+--
 scalar
     :: forall m r. (Fact m, Elt r)
-    => Tagged m (Acc (Scalar r) -> Acc (Vector r))
-scalar =
+    => r
+    -> Arr m r
+scalar r =
   let n  = proxy totientFact (Proxy :: Proxy m)
       sh = A.constant (Z :. n)
   in
-  tag $ A.fill sh . A.the
+  Arr . run $ A.fill sh (A.constant r)
 
 
 -- | Embeds an array in the CRT basis of the m`th cyclotomic ring into an array
 -- in the CRT basis of the m'`th cyclotomic ring, when @m | m'@.
 --
-embed :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp r), Elt r)
-      => monad (Tagged '(m,m') (Acc (Vector r) -> Acc (Vector r)))
+embed :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp r), Dispatch r)
+      => monad (Arr m r -> Arr m' r)
 embed = do
   -- first check existence of the CRT transform in m'
   _ <- proxyT crtInfo (Proxy::Proxy m') :: monad (CRTInfo (Exp r))
   let indices = proxy baseIndicesCRT (Proxy::Proxy '(m,m'))
-  return . tag $ embed' (A.use indices)
+  return $ wrap (P.embedCRT' indices)
 
-embed' :: Elt r => Acc (Vector Int) -> Acc (Vector r) -> Acc (Vector r)
-embed' = A.gather
+embedCRT' :: Elt r => Acc (Vector Int) -> Acc (Vector r) -> Acc (Vector r)
+embedCRT' = A.gather
 
 
 -- | Multiply by @g_m@ in the CRT basis (when it exists)

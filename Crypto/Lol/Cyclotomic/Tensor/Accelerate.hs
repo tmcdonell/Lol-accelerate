@@ -50,11 +50,14 @@ import Data.Array.Accelerate.Crypto.Lol.Types.Complex               ()
 import Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic               ()
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dispatch
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Instances            ( )
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim                 ( Dispatch )
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT                   as AT
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               as Arr
-import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec        as Dec
-import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension  as Ext
+-- import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.CRT        as Ext
+-- import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dec        as Dec
+-- import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension  as Ext
+import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL         as GL
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow        as Pow
 
 -- lol
@@ -75,9 +78,11 @@ import Data.Constraint
 --
 instance Tensor AT where
   type TElt AT r = ( Elt r
+                   , Dispatch r
                    , CRTIndex (Exp r) ~ Exp Int
                    , A.FromIntegral Int r
                    , A.Eq r                   -- entailEqT
+                   , Ring r                   -- divGPow, divGDec
                    , ZeroTestable.C (Exp r)   -- entalZTT, divGPow, divGDec
                    , Additive (Exp r)         -- entailModuleT
                    , Ring (Exp r)             -- entailModuleT
@@ -93,69 +98,69 @@ instance Tensor AT where
   entailModuleT = tag $ Sub Dict
 
   -- Make a raw value available for processing in Accelerate
-  rep           = return . A.constant
+  -- rep           = return . A.constant
 
   -- Convert a scalar to a tensor in the powerful basis
-  scalarPow     = AT . scalarPow'
+  scalarPow     = AT . Pow.scalar
 
   -- 'l' converts from decoding-basis representation to powerful-basis
   -- representation; 'lInv' is its inverse.
-  l             = AT.wrap fL'
-  lInv          = AT.wrap fLInv'
+  l             = AT.wrap GL.fL
+  lInv          = AT.wrap GL.fLInv
 
   -- Multiply by @g@ in the powerful/decoding basis
-  mulGPow       = AT.wrap mulGPow'
-  mulGDec       = AT.wrap mulGDec'
+  mulGPow       = AT.wrap GL.fGPow
+  mulGDec       = AT.wrap GL.fGDec
 
   -- Divide by @g@ in the powerful/decoding basis. This operation is only
   -- possible when the input is evenly divisible by @g@.
-  divGPow       = AT.wrapM divGPow'
-  divGDec       = AT.wrapM divGDec'
+  divGPow       = AT.wrapM GL.fGInvPow
+  divGDec       = AT.wrapM GL.fGInvDec
 
   -- A tuple of all the operations relating to the CRT basis, in a single
   -- 'Maybe' value for safety. Clients should typically use the corresponding
   -- top-level functions instead.
-  crtFuncs      = (,,,,) <$> ((AT.)   <$> scalarCRT')
-                         <*> (AT.wrap <$> mulGCRT')
-                         <*> (AT.wrap <$> divGCRT')
-                         <*> (AT.wrap <$> fCRT')
-                         <*> (AT.wrap <$> fCRTInv')
+  -- crtFuncs      = (,,,,) <$> ((AT.)   <$> CRT.scalar)
+  --                        <*> (AT.wrap <$> mulGCRT')
+  --                        <*> (AT.wrap <$> divGCRT')
+  --                        <*> (AT.wrap <$> fCRT')
+  --                        <*> (AT.wrap <$> fCRTInv')
 
   -- Sample from the "tweaked" Gaussian error distribution @t*D@ in the decoding
   -- basis, where @D@ has scaled variance @v@.
-  tGaussianDec  = fmap AT . Dec.tGaussian
+  -- tGaussianDec  = fmap AT . Dec.tGaussian
 
   -- -- Given the coefficient tensor of @e@ with respect to the decoding basis of
   -- -- @R@, yield the (scaled) squared norm of @g_m \cdot e@ under the canonical
   -- -- embedding, namely:
   -- --
   -- --   @ \hat{m}^{ -1 } \cdot || \sigma ( g_m \cdot e ) ||^2 @
-  gSqNormDec    = AT.unwrap gSqNormDec'
+  -- gSqNormDec    = AT.unwrap gSqNormDec'
 
   -- The @twace@ linear transformation, which is the same in both the powerful
   -- and decoding bases.
-  twacePowDec   = AT.wrap twacePowDec'
+  -- twacePowDec   = AT.wrap twacePowDec'
 
   -- The @embed@ linear transformations, for the powerful and decoding bases
-  embedPow      = AT.wrap embedPow'
-  embedDec      = AT.wrap embedDec'
+  embedPow      = AT.wrap Pow.embed
+  -- embedDec      = AT.wrap embedDec'
 
   -- A tuple of all the extension-related operations involving the CRT basis, in
   -- a single 'Maybe' value for safety. Clients should typically use the
   -- corresponding top-level functions instead.
-  crtExtFuncs   = (,) <$> (AT.wrap <$> twaceCRT')
-                      <*> (AT.wrap <$> embedCRT')
+  -- crtExtFuncs   = (,) <$> (AT.wrap <$> twaceCRT')
+  --                     <*> (AT.wrap <$> embedCRT')
 
   -- May a tensor in the powerful/decoding/CRT basis, representing an @O_m'@
   -- element, to a vector of tensors representing @O_m@ elements in the same
   -- kind of basis.
-  coeffs        = AT.wrapM Ext.coeffs
+  -- coeffs        = AT.wrapM Ext.coeffs
 
   -- The powerful extension basis w.r.t. the powerful basis
   powBasisPow   = (AT <$>) <$> Pow.powBasis
 
   -- A list of tensors representing the mod-@p@ CRT set of the extension
-  crtSetDec     = (AT <$>) <$> Ext.crtSetDec
+  -- crtSetDec     = (AT <$>) <$> Ext.crtSetDec
 
   -- Auxiliary
   fmapT f       = AT.wrap  $ Arr.wrap  (runN (A.map f))

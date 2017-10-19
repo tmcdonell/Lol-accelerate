@@ -43,6 +43,7 @@ Flag with-execs
 
 library
   default-language:   Haskell2010
+  include-dirs:       .
   build-depends:
       base                              >= 4.7 && < 4.10
     , accelerate                        >= 0.16
@@ -82,6 +83,7 @@ library
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow
+      Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim
 
   if flag(llvm-cpu)
     cpp-options:      -DACCELERATE_LLVM_NATIVE_BACKEND

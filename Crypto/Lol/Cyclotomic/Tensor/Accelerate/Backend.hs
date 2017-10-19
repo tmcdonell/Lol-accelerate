@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE CPP #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 -- Copyright   : [2016] Trevor L. McDonell
@@ -10,9 +9,22 @@
 -- Portability : non-portable (GHC extensions)
 --
 
-module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-  where
+module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend (
 
+  module Backend,
+
+) where
+
+#if   defined(ACCELERATE_LLVM_NATIVE_BACKEND)
+import Data.Array.Accelerate.LLVM.Native      as Backend
+#elif defined(ACCELERATE_LLVM_PTX_BACKEND)
+import Data.Array.Accelerate.LLVM.PTX         as Backend
+#else
+#error "must compile with either -fllvm-cpu or -fllvm-ptx"
+#endif
+
+
+{--
 import Data.Label
 import Data.List
 import System.Console.GetOpt
@@ -141,4 +153,5 @@ runNWith CPU         f = CPU.runN f
 #ifdef ACCELERATE_LLVM_PTX_BACKEND
 runNWith PTX         f = PTX.runN f
 #endif
+--}
 
