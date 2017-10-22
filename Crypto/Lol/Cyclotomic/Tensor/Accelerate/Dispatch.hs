@@ -16,6 +16,18 @@
 -- Stability   : experimental
 -- Portability : non-portable (GHC extensions)
 --
+-- This module implements the operations of Tensor
+--
+-- Ideally, we would pre-compile these at each type they are used at. However,
+-- as the current `runQ` infrastructure is built around TemplateHaskell, and the
+-- implementation of the Tensor operations make heavy use of meta-programming
+-- around the modulus type(s) `m`, this is quite difficult.
+--
+-- As GHC is not magical enough to reuse our invocations of `runN` itself, we
+-- must explicitly memoise each call at a given modulus/ring combination. There
+-- is of course some overhead to this, but much less than going through the
+-- entire Accelerate pipeline.
+--
 
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dispatch
   where
@@ -37,13 +49,6 @@ import Data.Array.Accelerate                                        as A
 import Data.Array.Accelerate.Crypto.Lol.CRTrans
 import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTestable
 
-
--- These implement the operations of Tensor, and should be compiled
--- ahead-of-time for each ring/moduli combination they are used at.
---
--- This should work for the functions of a single moduli, but operations between
--- moduli such as 'Ext.twaceCRT' could be problematic...
---
 
 scalarPow' :: forall m r. (Fact m, Additive (Exp r), Elt r) => r -> Arr m r
 scalarPow' = Arr . go . scalar
@@ -250,10 +255,10 @@ __embedPow'    = unsafePerformIO newMemoTable2
 __embedDec'    = unsafePerformIO newMemoTable2
 
 {-# NOINLINE __twaceCRT' #-}
-{-# NOINLINE __embedCRT' #-}
 __twaceCRT' :: MemoTable2 m1 m2 r (monad (Vector r -> Vector r))
 __twaceCRT' = unsafePerformIO newMemoTable2
 
+{-# NOINLINE __embedCRT' #-}
 __embedCRT' :: MemoTable2 m1 m2 r (Vector r -> Vector r)
 __embedCRT' = unsafePerformIO newMemoTable2
 
