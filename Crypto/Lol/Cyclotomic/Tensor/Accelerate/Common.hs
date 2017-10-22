@@ -33,7 +33,7 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common (
 
 ) where
 
-import Data.Array.Accelerate                                        ( Acc, Array, Vector, Exp, Elt, DIM2, All(..), Z(..), (:.)(..), (!) )
+import Data.Array.Accelerate                                        ( Acc, Array, Scalar, Vector, Exp, Elt, DIM2, All(..), Z(..), (:.)(..), (!) )
 import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
@@ -41,14 +41,20 @@ import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralD
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Memo
 import Crypto.Lol.Prelude
 
 import Data.Singletons.Prelude                                      ( Sing(..), sing )
 
 import Control.Applicative
+import Control.Concurrent.MVar
 import Control.Monad
 import Control.Monad.Random
+import Data.HashMap.Strict                                          ( HashMap )
+import Data.Typeable
+import System.IO.Unsafe
 import Text.Printf
+import qualified Data.HashMap.Strict                                as Map
 
 
 -- infixr 9 .*
@@ -74,8 +80,15 @@ type role Arr nominal nominal
 -- some (possibly quite large) expression.
 --
 instance A.Eq r => Eq (Arr m r) where
-  Arr xs == Arr ys = let !go = runN (A.and $$ A.zipWith (A.==)) in A.indexArray (go xs ys) Z
-  Arr xs /= Arr ys = let !go = runN (A.or  $$ A.zipWith (A./=)) in A.indexArray (go xs ys) Z
+  Arr xs == Arr ys = A.indexArray (go xs ys) Z
+    where
+      go = memo' __eq (typeRep (Proxy::Proxy r))
+         $ runN (A.and $$ A.zipWith (A.==))
+  --
+  Arr xs /= Arr ys = A.indexArray (go xs ys) Z
+    where
+      go = memo' __neq (typeRep (Proxy::Proxy r))
+         $ runN (A.or  $$ A.zipWith (A./=))
 
 instance (Elt r, Random r, Fact m) => Random (Arr m r) where
   randomR = error "Arr.randomR: not supported"
@@ -304,4 +317,12 @@ mulDiag diag mat
 infixr 0 $$
 ($$) :: (b -> a) -> (c -> d -> b) -> c -> d -> a
 (f $$ g) x y = f (g x y)
+
+
+-- Memo tables
+-- -----------
+
+__eq, __neq :: MVar (HashMap TypeRep (Vector r -> Vector r -> Scalar Bool))
+__eq  = unsafePerformIO $ newMVar Map.empty
+__neq = unsafePerformIO $ newMVar Map.empty
 

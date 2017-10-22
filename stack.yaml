@@ -7,25 +7,6 @@ packages:
 - '.'
 
 - location:
-    git:    https://github.com/tmcdonell/accelerate.git
-    commit: 0a9e06d319403fc3e081bc62e7d0b7631b74a91c
-  extra-dep: true
-
-- location:
-    git:    https://github.com/AccelerateHS/accelerate-io.git
-    commit: 6e6fd16a380af2054ab6abe5fd2423e19dda783c
-  extra-dep: true
-
-- location:
-    git:    https://github.com/tmcdonell/accelerate-llvm.git
-    commit: 866ae87e492c890b622a429a10eaec0691e5fb6c
-  extra-dep: true
-  subdirs:
-    - 'accelerate-llvm'
-    - 'accelerate-llvm-native'
-    - 'accelerate-llvm-ptx'
-
-- location:
     git:    https://github.com/tmcdonell/numeric-prelude-accelerate.git
     commit: 330f2d74a8fa135c0ca143d39c53a56f2eee1fc7
   extra-dep: true
@@ -38,15 +19,19 @@ packages:
     - 'lol'
     - 'lol-apps'
 
-- location:
-    git:    https://github.com/tmcdonell/cuda.git
-    commit: b6e62e26a4a62cb94961c4b9fd9eca97ad04652e
-  extra-dep: true
-
 extra-deps:
-- 'nvvm-0.7.5.2'
+- 'accelerate-1.1.1.0'
+- 'accelerate-io-1.0.0.1'
+- 'accelerate-llvm-1.1.0.0'
+- 'accelerate-llvm-native-1.1.0.1'
+- 'accelerate-llvm-ptx-1.1.0.0'
+- 'Cabal-2.0.0.2'
+- 'cuda-8.0.0.0'
+- 'llvm-hs-5.1.0'
+- 'llvm-hs-pure-5.1.0'
+- 'nvvm-0.8.0.0'
+- 'repa-3.4.1.3'
 - 'tagged-transformer-0.8'
-- 'repa-3.4.1.2'
 
 # Override default flag values for local packages and extra-deps
 flags:
