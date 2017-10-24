@@ -104,7 +104,7 @@ coeffs :: forall m m' r. (m `Divides` m', Elt r)
        -> [Arr m r]
 coeffs (Arr arr) =
   let indices = proxy extIndicesCoeffs (Proxy::Proxy '(m,m'))
-      go      = memo2 (Proxy::Proxy m) (Proxy::Proxy m') (Proxy::Proxy r) __coeffs
+      go      = memo __coeffs (MK::MemoKey '(m,m',r))
               $ runN (flip A.gather)
   in
   V.toList $ V.map (Arr . go arr) indices
@@ -184,6 +184,6 @@ extIndicesCoeffs = do
 -- Memo tables
 -- -----------
 
-__coeffs :: MemoTable2 m m' r (Vector r -> Vector Int -> Vector r)
-__coeffs = unsafePerformIO newMemoTable2
+__coeffs :: MemoTable '(m,m',r) (Vector r -> Vector Int -> Vector r)
+__coeffs = unsafePerformIO newMemoTable
 

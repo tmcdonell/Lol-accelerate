@@ -53,31 +53,31 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 scalarPow' :: forall m r. (Fact m, Additive (Exp r), Elt r) => r -> Arr m r
 scalarPow' = Arr . go . scalar
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __scalarPow'
+    go = memo __scalarPow' (MK::MemoKey '(m,r))
        $ runN (proxy Pow.scalar (Proxy::Proxy m))
 
 fL' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
 fL' = Arr.wrap go
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __fL'
+    go = memo __fL' (MK::MemoKey '(m,r))
        $ runN (proxy GL.fL (Proxy::Proxy m))
 
 fLInv' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
 fLInv' = Arr.wrap go
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __fLInv'
+    go = memo __fLInv' (MK::MemoKey '(m,r))
        $ runN (proxy GL.fLInv (Proxy::Proxy m))
 
 mulGPow' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
 mulGPow' = Arr.wrap go
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __mulGPow'
+    go = memo __mulGPow' (MK::MemoKey '(m,r))
        $ runN (proxy GL.fGPow (Proxy::Proxy m))
 
 mulGDec' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
 mulGDec' = Arr.wrap go
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __mulGDec'
+    go = memo __mulGDec' (MK::MemoKey '(m,r))
        $ runN (proxy GL.fGDec (Proxy::Proxy m))
 
 divGPow'
@@ -86,7 +86,7 @@ divGPow'
     -> Maybe (Arr m r)
 divGPow' = Arr.wrapM check
   where
-    go      = memo (Proxy::Proxy m) (Proxy::Proxy r) __divGPow'
+    go      = memo __divGPow' (MK::MemoKey '(m,r))
             $ runN (proxy GL.fGInvPow (Proxy::Proxy m))
     check x = let (ok,r) = go x in
               if indexArray ok Z
@@ -99,7 +99,7 @@ divGDec'
     -> Maybe (Arr m r)
 divGDec' = Arr.wrapM check
   where
-    go      = memo (Proxy::Proxy m) (Proxy::Proxy r) __divGDec'
+    go      = memo __divGDec' (MK::MemoKey '(m,r))
             $ runN (proxy GL.fGInvDec (Proxy::Proxy m))
     check x = let (ok,r) = go x in
                 if indexArray ok Z
@@ -109,14 +109,14 @@ divGDec' = Arr.wrapM check
 scalarCRT' :: forall monad m r. (CRTrans monad (Exp r), Fact m, Elt r) => monad (r -> Arr m r)
 scalarCRT' = return $ Arr . go . scalar
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __scalarCRT'
+    go = memo __scalarCRT' (MK::MemoKey '(m,r))
        $ runN (proxy CRT.scalar (Proxy::Proxy m))
 
 mulGCRT' :: forall monad m r. (CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int, Fact m, Elt r)
          => monad (Arr m r -> Arr m r)
 mulGCRT' = Arr.wrap <$> go
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __mulGCRT'
+    go = memo __mulGCRT' (MK::MemoKey '(m,r))
        $ do f <- CRT.mulGCRT
             return $ runN (proxy f (Proxy::Proxy m))
 
@@ -124,7 +124,7 @@ divGCRT' :: forall monad m r. (CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int
          => monad (Arr m r -> Arr m r)
 divGCRT' = Arr.wrap <$> go
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __divGCRT'
+    go = memo __divGCRT' (MK::MemoKey '(m,r))
        $ do f <- CRT.divGCRT
             return $ runN (proxy f (Proxy::Proxy m))
 
@@ -132,7 +132,7 @@ fCRT' :: forall monad m r. (CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int, F
       => monad (Arr m r -> Arr m r)
 fCRT' = Arr.wrap <$> go
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __fCRT'
+    go = memo __fCRT' (MK::MemoKey '(m,r))
        $ do f <- CRT.fCRT
             return $ runN (proxy f (Proxy::Proxy m))
 
@@ -140,35 +140,35 @@ fCRTInv' :: forall monad m r. (CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int
          => monad (Arr m r -> Arr m r)
 fCRTInv' = Arr.wrap <$> go
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __fCRTInv'
+    go = memo __fCRTInv' (MK::MemoKey '(m,r))
        $ do f <- CRT.fCRTInv
             return $ runN (proxy f (Proxy::Proxy m))
 
 gSqNormDec' :: forall m r. (Fact m, Ring (Exp r), Elt r) => Arr m r -> r
 gSqNormDec' (Arr arr) = go arr `indexArray` Z
   where
-    go = memo (Proxy::Proxy m) (Proxy::Proxy r) __gSqNormDec'
+    go = memo __gSqNormDec' (MK::MemoKey '(m,r))
        $ runN (proxy Dec.gSqNorm (Proxy::Proxy m))
 
 twacePowDec' :: forall m m' r. (m `Divides` m', Elt r) => Arr m' r -> Arr m r
 twacePowDec' = Arr.wrap go
   where
     indices  = proxy Ext.extIndicesPowDec (Proxy::Proxy '(m,m'))
-    go       = memo2 (Proxy::Proxy m) (Proxy::Proxy m') (Proxy::Proxy r) __twacePowDec'
+    go       = memo __twacePowDec' (MK::MemoKey '(m,m',r))
              $ runN (gather (use indices))
 
 embedPow' :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r) => Arr m r -> Arr m' r
 embedPow' = Arr.wrap go
   where
     indices  = proxy Pow.baseIndicesPow (Proxy::Proxy '(m,m'))
-    go       = memo2 (Proxy::Proxy m) (Proxy::Proxy m') (Proxy::Proxy r) __embedPow'
+    go       = memo __embedPow' (MK::MemoKey '(m,m',r))
              $ runN (Pow.embed' (use indices))
 
 embedDec' :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r) => Arr m r -> Arr m' r
 embedDec' = Arr.wrap go
   where
     indices  = proxy Dec.baseIndicesDec (Proxy::Proxy '(m,m'))
-    go       = memo2 (Proxy::Proxy m) (Proxy::Proxy m') (Proxy::Proxy r) __embedDec'
+    go       = memo __embedDec' (MK::MemoKey '(m,m',r))
              $ runN (Dec.embed' (use indices))
 
 twaceCRT'
@@ -176,7 +176,7 @@ twaceCRT'
     => monad (Arr m' r -> Arr m r)
 twaceCRT' = Arr.wrap <$> go
   where
-    go = memo2 (Proxy::Proxy m) (Proxy::Proxy m') (Proxy::Proxy r) __twaceCRT'
+    go = memo __twaceCRT' (MK::MemoKey '(m,m',r))
        $ do f <- Ext.twaceCRT
             return $ runN (proxy f (Proxy::Proxy '(m,m')))
 
@@ -186,7 +186,7 @@ embedCRT' = do
   return $ Arr.wrap go
   where
     indices = proxy CRT.baseIndicesCRT (Proxy::Proxy '(m,m'))
-    go      = memo2 (Proxy::Proxy m) (Proxy::Proxy m') (Proxy::Proxy r) __embedCRT'
+    go      = memo __embedCRT' (MK::MemoKey '(m,m',r))
             $ runN (CRT.embed' (use indices))
 
 
@@ -203,62 +203,62 @@ scalar x  = fromList Z [x]
 -- Explicit memo tables for each of the tensor functions
 
 {-# NOINLINE __scalarPow' #-}
-__scalarPow' :: MemoTable m r (Scalar r -> Vector r)
+__scalarPow' :: MemoTable '(m,r) (Scalar r -> Vector r)
 __scalarPow' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __fL'    #-}
 {-# NOINLINE __fLInv' #-}
-__fL', __fLInv' :: MemoTable m r (Vector r -> Vector r)
+__fL', __fLInv' :: MemoTable '(m,r) (Vector r -> Vector r)
 __fL'    = unsafePerformIO newMemoTable
 __fLInv' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __mulGPow' #-}
 {-# NOINLINE __mulGDec' #-}
-__mulGPow', __mulGDec' :: MemoTable m r (Vector r -> Vector r)
+__mulGPow', __mulGDec' :: MemoTable '(m,r) (Vector r -> Vector r)
 __mulGPow' = unsafePerformIO newMemoTable
 __mulGDec' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __divGPow' #-}
 {-# NOINLINE __divGDec' #-}
-__divGPow', __divGDec' :: MemoTable m r (Vector r -> (Scalar Bool, Vector r))
+__divGPow', __divGDec' :: MemoTable '(m,r) (Vector r -> (Scalar Bool, Vector r))
 __divGPow' = unsafePerformIO newMemoTable
 __divGDec' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __scalarCRT' #-}
-__scalarCRT' :: MemoTable m r (Scalar r -> Vector r)
+__scalarCRT' :: MemoTable '(m,r) (Scalar r -> Vector r)
 __scalarCRT' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __mulGCRT' #-}
 {-# NOINLINE __divGCRT' #-}
-__mulGCRT', __divGCRT' :: MemoTable m r (monad (Vector r -> Vector r))
+__mulGCRT', __divGCRT' :: MemoTable '(m,r) (monad (Vector r -> Vector r))
 __mulGCRT' = unsafePerformIO newMemoTable
 __divGCRT' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __fCRT'    #-}
 {-# NOINLINE __fCRTInv' #-}
-__fCRT', __fCRTInv' :: MemoTable m r (monad (Vector r -> Vector r))
+__fCRT', __fCRTInv' :: MemoTable '(m,r) (monad (Vector r -> Vector r))
 __fCRT'    = unsafePerformIO newMemoTable
 __fCRTInv' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __gSqNormDec' #-}
-__gSqNormDec' :: MemoTable m r (Vector r -> Scalar r)
+__gSqNormDec' :: MemoTable '(m,r) (Vector r -> Scalar r)
 __gSqNormDec' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __twacePowDec' #-}
-__twacePowDec' :: MemoTable2 m1 m2 r (Vector r -> Vector r)
-__twacePowDec' = unsafePerformIO newMemoTable2
+__twacePowDec' :: MemoTable '(m,m',r) (Vector r -> Vector r)
+__twacePowDec' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __embedPow' #-}
 {-# NOINLINE __embedDec' #-}
-__embedPow', __embedDec' :: MemoTable2 m1 m2 r (Vector r -> Vector r)
-__embedPow'    = unsafePerformIO newMemoTable2
-__embedDec'    = unsafePerformIO newMemoTable2
+__embedPow', __embedDec' :: MemoTable '(m,m',r) (Vector r -> Vector r)
+__embedPow'    = unsafePerformIO newMemoTable
+__embedDec'    = unsafePerformIO newMemoTable
 
 {-# NOINLINE __twaceCRT' #-}
-__twaceCRT' :: MemoTable2 m1 m2 r (monad (Vector r -> Vector r))
-__twaceCRT' = unsafePerformIO newMemoTable2
+__twaceCRT' :: MemoTable '(m,m',r) (monad (Vector r -> Vector r))
+__twaceCRT' = unsafePerformIO newMemoTable
 
 {-# NOINLINE __embedCRT' #-}
-__embedCRT' :: MemoTable2 m1 m2 r (Vector r -> Vector r)
-__embedCRT' = unsafePerformIO newMemoTable2
+__embedCRT' :: MemoTable '(m,m',r) (Vector r -> Vector r)
+__embedCRT' = unsafePerformIO newMemoTable
 

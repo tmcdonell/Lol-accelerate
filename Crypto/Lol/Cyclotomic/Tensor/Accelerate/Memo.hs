@@ -1,5 +1,9 @@
 {-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE GADTs               #-}
+{-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate.Memo
@@ -34,90 +38,69 @@ import qualified Data.HashMap.Strict                                as Map
 
 import Data.Array.Accelerate                                        ( Elt )
 
-import Crypto.Lol.Prelude                                           ( Fact, proxy, ppsFact )
+import Crypto.Lol.Prelude                                           ( Fact, proxy, valueFact )
 
 
--- Memo tables over a single modulus
---
-data ModRing m r where
-  ModRing   :: (Fact m, Elt r)
-            => {-# UNPACK #-} !(Proxy m)
-            -> {-# UNPACK #-} !(Proxy r)
-            -> ModRing m r
+type MemoTable k v = MVar ( HashMap (MemoKey k) v )
 
-instance Eq (ModRing m r) where
-  ModRing m1 r1 == ModRing m2 r2
-    = proxy ppsFact m1 == proxy ppsFact m2 && typeRep r1 == typeRep r2
-
-instance Hashable (ModRing m r) where
-  hashWithSalt salt (ModRing m1 r1)
-    = salt `hashWithSalt` proxy ppsFact m1 `hashWithSalt` typeRep r1
-
-
-type MemoTable m r a = MVar ( HashMap (ModRing m r) a )
-
-newMemoTable :: IO (MemoTable m r a )
+newMemoTable :: IO (MemoTable k v)
 newMemoTable = newMVar ( Map.empty )
 
-memo :: forall m r a. (Fact m, Elt r)
-     => Proxy m
-     -> Proxy r
-     -> MemoTable m r a
-     -> a
-     -> a
-memo _ _ !ref ~val =
-  let key = ModRing (Proxy::Proxy m) (Proxy::Proxy r)
-  in  memo' ref key val
-
-
--- Memo tables over two modulii (ugh...)
---
-
-data Mod2Ring m1 m2 r where
-  Mod2Ring  :: (Fact m1, Fact m2, Elt r)
-            => {-# UNPACK #-} !(Proxy m1)
-            -> {-# UNPACK #-} !(Proxy m2)
-            -> {-# UNPACK #-} !(Proxy r)
-            -> Mod2Ring m1 m2 r
-
-instance Eq (Mod2Ring m1 m2 r) where
-  Mod2Ring m11 m12 r1 == Mod2Ring m21 m22 r2
-    = proxy ppsFact m11 == proxy ppsFact m21
-   && proxy ppsFact m12 == proxy ppsFact m22
-   && typeRep r1 == typeRep r2
-
-instance Hashable (Mod2Ring m1 m2 r) where
-  hashWithSalt salt (Mod2Ring m1 m2 r1)
-    = salt `hashWithSalt` proxy ppsFact m1
-           `hashWithSalt` proxy ppsFact m2
-           `hashWithSalt` typeRep r1
-
-
-type MemoTable2 m1 m2 r a = MVar ( HashMap (Mod2Ring m1 m2 r) a )
-
-newMemoTable2 :: IO (MemoTable2 m1 m2 r a )
-newMemoTable2 = newMVar ( Map.empty )
-
-memo2 :: forall m1 m2 r a. (Fact m1, Fact m2, Elt r)
-      => Proxy m1
-      -> Proxy m2
-      -> Proxy r
-      -> MemoTable2 m1 m2 r a
-      -> a
-      -> a
-memo2 _ _ _ !ref ~val =
-  let key = Mod2Ring (Proxy::Proxy m1) (Proxy::Proxy m2) (Proxy::Proxy r)
-  in  memo' ref key val
-
-memo' :: (Eq k, Hashable k)
-      => MVar (HashMap k v)
-      -> k
-      -> v
-      -> v
-memo' !ref !key ~val
+memo :: forall k v. (Eq (MemoKey k), Hashable (MemoKey k))
+     => MemoTable k v
+     -> MemoKey k
+     -> v
+     -> v
+memo !ref _ val
   = unsafePerformIO
   $ modifyMVar ref $ \table ->
-      case Map.lookup key table of
-        Nothing  -> return (Map.insert key val table, val)
+      case Map.lookup MK table of
+        Nothing  -> return (Map.insert MK val table, val)
         Just old -> return (table, old)
+
+
+data MemoKey (a :: k) = MK
+
+instance Fact m => Hashable (MemoKey m) where
+  hashWithSalt salt _ = salt `hashWithSalt` (proxy valueFact (Proxy::Proxy m))
+
+instance Elt e => Hashable (MemoKey e) where
+  hashWithSalt salt _ = salt `hashWithSalt` typeRep (Proxy::Proxy e)
+
+instance (Hashable (MemoKey a), Hashable (MemoKey b)) => Hashable (MemoKey '(a,b)) where
+  hashWithSalt salt _ = salt `hashWithSalt` (MK :: MemoKey a)
+                             `hashWithSalt` (MK :: MemoKey b)
+
+instance (Hashable (MemoKey a), Hashable (MemoKey b), Hashable (MemoKey c)) => Hashable (MemoKey '(a,b,c)) where
+  hashWithSalt salt _ = salt `hashWithSalt` (MK :: MemoKey a)
+                             `hashWithSalt` (MK :: MemoKey b)
+                             `hashWithSalt` (MK :: MemoKey c)
+
+instance Fact m => Show (MemoKey m) where
+  show _ = 'F' : show (proxy valueFact (Proxy::Proxy m))
+
+instance Elt e => Show (MemoKey e) where
+  show _ = showsTypeRep (typeRep (Proxy::Proxy e)) ""
+
+instance (Show (MemoKey a), Show (MemoKey b)) => Show (MemoKey '(a,b)) where
+  show _ = "(" ++ show (MK::MemoKey a) ++ "," ++ show (MK::MemoKey b) ++ ")"
+
+instance (Show (MemoKey a), Show (MemoKey b), Show (MemoKey c)) => Show (MemoKey '(a,b,c)) where
+  show _ = "(" ++ show (MK::MemoKey a) ++ "," ++ show (MK::MemoKey b) ++ "," ++ show (MK::MemoKey c) ++ ")"
+
+instance Fact m => Eq (MemoKey m) where
+  _ == _ = True
+  _ /= _ = False
+
+instance Elt e => Eq (MemoKey e) where
+  _ == _ = True
+  _ /= _ = False
+
+instance (Eq (MemoKey a), Eq (MemoKey b)) => Eq (MemoKey '(a,b)) where
+  _ == _ = True
+  _ /= _ = False
+
+instance (Eq (MemoKey a), Eq (MemoKey b), Eq (MemoKey c)) => Eq (MemoKey '(a,b,c)) where
+  _ == _ = True
+  _ /= _ = False
 

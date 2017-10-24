@@ -47,14 +47,10 @@ import Crypto.Lol.Prelude
 import Data.Singletons.Prelude                                      ( Sing(..), sing )
 
 import Control.Applicative
-import Control.Concurrent.MVar
 import Control.Monad
 import Control.Monad.Random
-import Data.HashMap.Strict                                          ( HashMap )
-import Data.Typeable
 import System.IO.Unsafe
 import Text.Printf
-import qualified Data.HashMap.Strict                                as Map
 
 
 -- infixr 9 .*
@@ -82,12 +78,12 @@ type role Arr nominal nominal
 instance A.Eq r => Eq (Arr m r) where
   Arr xs == Arr ys = A.indexArray (go xs ys) Z
     where
-      go = memo' __eq (typeRep (Proxy::Proxy r))
+      go = memo __eq (MK::MemoKey r)
          $ runN (A.and $$ A.zipWith (A.==))
   --
   Arr xs /= Arr ys = A.indexArray (go xs ys) Z
     where
-      go = memo' __neq (typeRep (Proxy::Proxy r))
+      go = memo __neq (MK::MemoKey r)
          $ runN (A.or  $$ A.zipWith (A./=))
 
 instance (Elt r, Random r, Fact m) => Random (Arr m r) where
@@ -322,7 +318,11 @@ infixr 0 $$
 -- Memo tables
 -- -----------
 
-__eq, __neq :: MVar (HashMap TypeRep (Vector r -> Vector r -> Scalar Bool))
-__eq  = unsafePerformIO $ newMVar Map.empty
-__neq = unsafePerformIO $ newMVar Map.empty
+__eq, __neq :: MemoTable e (Vector r -> Vector r -> Scalar Bool)
+__eq  = unsafePerformIO $ newMemoTable
+__neq = unsafePerformIO $ newMemoTable
+
+-- __eq, __neq :: MVar (HashMap TypeRep (Vector r -> Vector r -> Scalar Bool))
+-- __eq  = unsafePerformIO $ newMVar Map.empty
+-- __neq = unsafePerformIO $ newMVar Map.empty
 

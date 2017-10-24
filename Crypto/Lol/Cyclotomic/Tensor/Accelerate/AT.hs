@@ -47,19 +47,13 @@ import qualified Algebra.ZeroTestable                               as NPZT
 
 -- other libraries
 import Control.Applicative
-import Control.Concurrent.MVar
 import Control.DeepSeq
 import Control.Monad.Random
 import Data.Foldable
-import Data.HashMap.Strict                                          ( HashMap )
 import Data.Maybe
 import Data.Traversable
-import Data.Typeable
 import System.IO.Unsafe
-import qualified Data.HashMap.Strict                                as Map
 import qualified Data.Vector.Generic                                as V
-
--- import qualified Debug.Trace                                        as Debug
 
 
 -- | Tensor backed by Accelerate stages the computation as an expression
@@ -115,9 +109,9 @@ instance Fact m => Traversable (AT m) where
 
 instance (Fact m, Additive (Exp r), Elt r) => Additive.C (AT m r) where
   zero   = AT $ repl zero
-  (+)    = wrap2 (Arr.wrap2 (memo (Proxy::Proxy m) (Proxy::Proxy r) __additive_add $ runN (A.zipWith (+))))
-  (-)    = wrap2 (Arr.wrap2 (memo (Proxy::Proxy m) (Proxy::Proxy r) __additive_sub $ runN (A.zipWith (-))))
-  negate = wrap  (Arr.wrap  (memo (Proxy::Proxy m) (Proxy::Proxy r) __additive_neg $ runN (A.map negate)))
+  (+)    = wrap2 (Arr.wrap2 (memo __additive_add (MK::MemoKey '(m,r)) $ runN (A.zipWith (+))))
+  (-)    = wrap2 (Arr.wrap2 (memo __additive_sub (MK::MemoKey '(m,r)) $ runN (A.zipWith (-))))
+  negate = wrap  (Arr.wrap  (memo __additive_neg (MK::MemoKey '(m,r)) $ runN (A.map negate)))
 
 instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF fp d) (AT m fp) where
   --
@@ -144,7 +138,7 @@ instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF
            $ A.zipWith (*) (A.replicate (A.lift (Z :. h :. All)) g)  -- All == d
                            (A.reshape   (A.lift (Z :. h :. d  )) a)
 
-        go = memo (Proxy::Proxy m) (Proxy::Proxy fp) __module_scale
+        go = memo __module_scale (MK::MemoKey '(m,fp))
            $ runN scale
     in
     AT . Arr $! go gf at
@@ -160,7 +154,7 @@ instance (NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) where
   isZero (ZV v) = NPZT.isZero v
   isZero (AT a) = A.indexArray (go (unArr a)) Z
     where
-      go = memo' __iszero (typeRep (Proxy::Proxy r))
+      go = memo __iszero (MK::MemoKey r)
          $ runN (A.all ZeroTestable.isZero)
 
 
@@ -246,16 +240,16 @@ wrapM _ _ =
 -- Memo tables
 -- -----------
 
-__additive_add, __additive_sub :: MemoTable m r (Vector r -> Vector r -> Vector r)
+__additive_add, __additive_sub :: MemoTable '(m,r) (Vector r -> Vector r -> Vector r)
 __additive_add = unsafePerformIO newMemoTable
 __additive_sub = unsafePerformIO newMemoTable
 
-__additive_neg :: MemoTable m r (Vector r -> Vector r)
+__additive_neg :: MemoTable '(m,r) (Vector r -> Vector r)
 __additive_neg = unsafePerformIO newMemoTable
 
-__module_scale :: MemoTable m r (Vector r -> Vector r -> Vector r)
+__module_scale :: MemoTable '(m,r) (Vector r -> Vector r -> Vector r)
 __module_scale = unsafePerformIO newMemoTable
 
-__iszero :: MVar (HashMap TypeRep (Vector r -> Scalar Bool))
-__iszero = unsafePerformIO $ newMVar Map.empty
+__iszero :: MemoTable r (Vector r -> Scalar Bool)
+__iszero = unsafePerformIO newMemoTable
 

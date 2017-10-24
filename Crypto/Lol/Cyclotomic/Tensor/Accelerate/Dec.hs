@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE RebindableSyntax    #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
@@ -89,7 +90,7 @@ tGaussian v = do
       n   = proxy totientFact (Proxy::Proxy m)
       rad = proxy radicalFact (Proxy::Proxy m)
       fE' = proxy fE          (Proxy::Proxy m)
-      go  = memo (Proxy::Proxy m) (Proxy::Proxy r) __tGaussian (runN fE')
+      go  = memo __tGaussian (MK::MemoKey '(m,r)) (runN fE')
   --
   x <- A.fromList (Z :. n) <$> realGaussians (v * fromIntegral (m `div` rad)) n
   return . Arr $ go x
@@ -209,6 +210,6 @@ fromBool False = 0
 -- Memo tables
 -- -----------
 
-__tGaussian :: MemoTable m r (Vector r -> Vector r)
+__tGaussian :: MemoTable '(m,r) (Vector r -> Vector r)
 __tGaussian = unsafePerformIO newMemoTable
 
