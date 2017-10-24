@@ -25,6 +25,7 @@ import Test.Framework
 main :: IO ()
 main = do
   accInit
+  beginMonitoring
   opts <- testOptions
   flip defaultMainWithOpts opts $
     defaultAppsTests (Proxy::Proxy AT) (Proxy::Proxy TrivGad)

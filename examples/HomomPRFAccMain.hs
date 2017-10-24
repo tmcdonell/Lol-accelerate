@@ -21,5 +21,6 @@ import Data.Proxy
 main :: IO ()
 main = do
   accInit
+  beginMonitoring
   homomPRFMain (Proxy::Proxy AT)
 

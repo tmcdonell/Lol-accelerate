@@ -23,6 +23,7 @@ import Test.Framework
 main :: IO ()
 main = do
   accInit
+  beginMonitoring
   argv <- getArgs
   defaultMainWithArgs (defaultLolTests (Proxy::Proxy AT)) $ "--threads=1" : argv
 

@@ -66,6 +66,7 @@ bs = [
 main :: IO ()
 main = do
   accInit
+  beginMonitoring
   diagnosticMain
 
 {-
