@@ -37,6 +37,7 @@ import qualified Data.Array.Accelerate                              as A
 -- lol/lol-accelerate
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Memo
 
 import Crypto.Lol.GaussRandom                                       ( realGaussian )
 import Crypto.Lol.Prelude                                           as P hiding ( FromIntegral )
@@ -47,6 +48,7 @@ import Data.Word
 import Control.Applicative                                          ( (<$>) )
 import Control.Monad
 import Control.Monad.Random
+import System.IO.Unsafe
 import qualified Data.Vector.Unboxed                                as U
 -- import qualified Data.Vector.Storable                               as S
 
@@ -87,9 +89,10 @@ tGaussian v = do
       n   = proxy totientFact (Proxy::Proxy m)
       rad = proxy radicalFact (Proxy::Proxy m)
       fE' = proxy fE          (Proxy::Proxy m)
+      go  = memo (Proxy::Proxy m) (Proxy::Proxy r) __tGaussian (runN fE')
   --
   x <- A.fromList (Z :. n) <$> realGaussians (v * fromIntegral (m `div` rad)) n
-  return . Arr $ runN fE' x
+  return . Arr $ go x
 
 
 -- | The @E_m@ transformation for an arbitrary @m@.
@@ -201,4 +204,11 @@ baseIndicesDec = do
 fromBool :: Bool -> Word8
 fromBool True  = 1
 fromBool False = 0
+
+
+-- Memo tables
+-- -----------
+
+__tGaussian :: MemoTable m r (Vector r -> Vector r)
+__tGaussian = unsafePerformIO newMemoTable
 

@@ -51,6 +51,7 @@ library
     , constraints                       >= 0.8
     , deepseq                           >= 1.4
     , fclabels                          >= 2.0
+    , hashable                          >= 1.2
     , lol                               >= 0.7
     , MonadRandom                       >= 0.4
     , numeric-prelude                   >= 0.4.2
@@ -58,6 +59,7 @@ library
     , pretty                            >= 1.0
     , reflection                        >= 1.5.1
     , singletons                        >= 1.1.2.1
+    , unordered-containers              >= 0.2
     , vector                            >= 0.10
 
   ghc-options:
@@ -81,6 +83,7 @@ library
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Extension
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.GL
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Matrix
+      Crypto.Lol.Cyclotomic.Tensor.Accelerate.Memo
       Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow
 
   if flag(llvm-cpu)
@@ -163,6 +166,7 @@ Benchmark bench-lol-apps-acc
 
   build-depends:
       base                  >= 4.9 && < 4.10
+    , accelerate
     , DRBG                  >= 0.5 && < 0.6
     , lol                   >= 0.7.0.0 && < 0.8
     , lol-accelerate

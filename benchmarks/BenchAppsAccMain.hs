@@ -30,6 +30,7 @@ main = do
       pct = Proxy::Proxy AT
   --
   accInit
+  beginMonitoring
   bs <- sequence $
           defaultSHEBenches pct (Proxy::Proxy TrivGad) (Proxy::Proxy HashDRBG) ++
           [defaultKHPRFBenches pct (Proxy::Proxy (BaseBGad 2))]

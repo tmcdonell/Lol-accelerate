@@ -26,10 +26,11 @@
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT
   where
 
-import Data.Array.Accelerate                                        ( Exp, Elt, Z(..), (:.)(..), All(..) )
+import Data.Array.Accelerate                                        ( Exp, Elt, Scalar, Vector, Z(..), (:.)(..), All(..) )
 import qualified Data.Array.Accelerate                              as A
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Memo
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               hiding ( wrap, wrap2 )
 import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common     as Arr
 
@@ -46,11 +47,16 @@ import qualified Algebra.ZeroTestable                               as NPZT
 
 -- other libraries
 import Control.Applicative
+import Control.Concurrent.MVar
 import Control.DeepSeq
 import Control.Monad.Random
 import Data.Foldable
+import Data.HashMap.Strict                                          ( HashMap )
 import Data.Maybe
 import Data.Traversable
+import Data.Typeable
+import System.IO.Unsafe
+import qualified Data.HashMap.Strict                                as Map
 import qualified Data.Vector.Generic                                as V
 
 -- import qualified Debug.Trace                                        as Debug
@@ -109,9 +115,9 @@ instance Fact m => Traversable (AT m) where
 
 instance (Fact m, Additive (Exp r), Elt r) => Additive.C (AT m r) where
   zero   = AT $ repl zero
-  (+)    = wrap2 (Arr.wrap2 (runN (A.zipWith (+))))
-  (-)    = wrap2 (Arr.wrap2 (runN (A.zipWith (-))))
-  negate = wrap  (Arr.wrap  (runN (A.map negate)))
+  (+)    = wrap2 (Arr.wrap2 (memo (Proxy::Proxy m) (Proxy::Proxy r) __additive_add $ runN (A.zipWith (+))))
+  (-)    = wrap2 (Arr.wrap2 (memo (Proxy::Proxy m) (Proxy::Proxy r) __additive_sub $ runN (A.zipWith (-))))
+  negate = wrap  (Arr.wrap  (memo (Proxy::Proxy m) (Proxy::Proxy r) __additive_neg $ runN (A.map negate)))
 
 instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF fp d) (AT m fp) where
   --
@@ -131,14 +137,17 @@ instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF
         --
         -- AT . Arr $ A.zipWith (*) (A.flatten (A.replicate (A.lift (Z :. h :. All)) gf)) at
         --
-        go g a =
+        scale g a =
           let n = A.length a
               h = n `div` A.constant d  -- error if n `mod` d /= 0, so later reshape is fine
           in A.reshape (A.index1 n)
            $ A.zipWith (*) (A.replicate (A.lift (Z :. h :. All)) g)  -- All == d
                            (A.reshape   (A.lift (Z :. h :. d  )) a)
+
+        go = memo (Proxy::Proxy m) (Proxy::Proxy fp) __module_scale
+           $ runN scale
     in
-    AT . Arr $! runN go gf at
+    AT . Arr $! go gf at
   --
   r *> (ZV zv) =
     let xs  = V.toList (unIZipVector zv)
@@ -149,9 +158,10 @@ instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF
 
 instance (NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) where
   isZero (ZV v) = NPZT.isZero v
-  isZero (AT a) =
-    let !r = runN (A.all ZeroTestable.isZero) (unArr a)
-    in  A.indexArray r Z
+  isZero (AT a) = A.indexArray (go (unArr a)) Z
+    where
+      go = memo' __iszero (typeRep (Proxy::Proxy r))
+         $ runN (A.all ZeroTestable.isZero)
 
 
 -- Miscellaneous instances
@@ -231,4 +241,21 @@ wrapM :: (Monad monad, Elt r, Elt r')
 wrapM f (toAT -> AT arr) = AT <$> f arr
 wrapM _ _ =
   error "Why do you have a miniature black hole on your coffee table?"
+
+
+-- Memo tables
+-- -----------
+
+__additive_add, __additive_sub :: MemoTable m r (Vector r -> Vector r -> Vector r)
+__additive_add = unsafePerformIO newMemoTable
+__additive_sub = unsafePerformIO newMemoTable
+
+__additive_neg :: MemoTable m r (Vector r -> Vector r)
+__additive_neg = unsafePerformIO newMemoTable
+
+__module_scale :: MemoTable m r (Vector r -> Vector r -> Vector r)
+__module_scale = unsafePerformIO newMemoTable
+
+__iszero :: MVar (HashMap TypeRep (Vector r -> Scalar Bool))
+__iszero = unsafePerformIO $ newMVar Map.empty
 
