@@ -318,11 +318,7 @@ infixr 0 $$
 -- Memo tables
 -- -----------
 
-__eq, __neq :: MemoTable e (Vector r -> Vector r -> Scalar Bool)
+__eq, __neq :: MemoTable r (Vector r -> Vector r -> Scalar Bool)
 __eq  = unsafePerformIO $ newMemoTable
 __neq = unsafePerformIO $ newMemoTable
-
--- __eq, __neq :: MVar (HashMap TypeRep (Vector r -> Vector r -> Scalar Bool))
--- __eq  = unsafePerformIO $ newMVar Map.empty
--- __neq = unsafePerformIO $ newMVar Map.empty
 
