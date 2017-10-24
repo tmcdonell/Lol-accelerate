@@ -24,26 +24,22 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Pow (
   embed,
   powBasis,
 
+  embed',
   baseIndicesPow,
-
-  -- prim
-  embedPow',
 
 ) where
 
 -- accelerate & friends
-import Data.Array.Accelerate                                        as A hiding ( (-), div, wrap )
+import Data.Array.Accelerate                                        as A hiding ( (-), div )
 import Data.Array.Accelerate.IO                                     as A
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
 
 -- lol/lol-accelerate
-import Crypto.Lol.Prelude                                           as P
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               hiding ( scalar )
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim                 ( Dispatch )
+import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
+import Crypto.Lol.Prelude                                           as P
 import qualified Crypto.Lol.Cyclotomic.Tensor                       as T
-import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim       as P
 
 -- other libraries
 import Control.Applicative                                          ( (<$>) )
@@ -53,30 +49,26 @@ import qualified Data.Vector.Unboxed                                as U
 -- | Embeds a scalar into a powerful-basis representation, tagged by the
 -- cyclotomic index.
 --
--- NOTE: This does not get pre-compiled.
---
 scalar :: forall m r. (Fact m, Additive (Exp r), Elt r)
-       => r
-       -> Arr m r
-scalar r =
+       => Tagged m (Acc (Scalar r) -> Acc (Vector r))
+scalar =
   let n  = proxy totientFact (Proxy :: Proxy m)
       sh = constant (Z :. n)
   in
-  Arr . run $ generate sh (\(unindex1 -> i) -> i A.== 0 ? ( A.constant r , zero ))
+  tag $ \r -> generate sh (\(unindex1 -> i) -> i A.== 0 ? ( the r , zero ))
 
 
 -- | Embeds an array in the powerful basis of the m`th cyclotomic ring, to an
 -- array in the powerful basis of the m'`th cyclotomic ring, when @m | m'@
 --
-embed :: forall m m' r. (m `Divides` m', Additive (Exp r), Dispatch r)
-      => Arr m  r
-      -> Arr m' r
-embed = wrap $ P.embedPow' indices
+embed :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r)
+      => Tagged '(m,m') (Acc (Vector r) -> Acc (Vector r))
+embed = tag $ embed' (A.use indices)
   where
     indices = proxy baseIndicesPow (Proxy::Proxy '(m,m'))
 
-embedPow' :: (Additive (Exp r), Elt r) => Acc (Vector (Int,Int)) -> Acc (Vector r) -> Acc (Vector r)
-embedPow' indices arr = A.map f indices
+embed' :: (Additive (Exp r), Elt r) => Acc (Vector (Int,Int)) -> Acc (Vector r) -> Acc (Vector r)
+embed' indices arr = A.map f indices
   where
     f jix = let (j,ix) = A.unlift jix
             in  j A.== zero ? ( arr A.!! ix, zero )
@@ -84,8 +76,6 @@ embedPow' indices arr = A.map f indices
 
 -- | The powerful extension basis, w.r.t. the powerful basis. Outputs a list of
 -- arrays in @O_m'@ that are an @O_m@ basis for @O_m'@.
---
--- NOTE: This does not get pre-compiled.
 --
 powBasis
     :: forall m m' r. (m `Divides` m', Ring (Exp r), Elt r)

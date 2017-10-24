@@ -9,7 +9,6 @@
 {-# LANGUAGE RoleAnnotations     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE ViewPatterns        #-}
 -- |
 -- Module      : Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common
 -- Copyright   : [2016] Trevor L. McDonell
@@ -30,27 +29,19 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common (
 
   -- utilities
   wrap, wrap2, wrapM,
-  scalar,
   ($$),
-
-  -- prim
-  expose',
-  unexpose',
 
 ) where
 
-import Data.Array.Accelerate                                        ( Acc, Array, Scalar, Vector, Shape, Exp, Elt, DIM2, All(..), Z(..), (:.)(..), (!) )
-import Data.Array.Accelerate.Array.Sugar                            ( Array(..), fromElt )
+import Data.Array.Accelerate                                        ( Acc, Array, Vector, Exp, Elt, DIM2, All(..), Z(..), (:.)(..), (!) )
 import qualified Data.Array.Accelerate                              as A
 
 import qualified Data.Array.Accelerate.Algebra.Additive             as Additive ()
 import qualified Data.Array.Accelerate.Algebra.IntegralDomain       as IntegralDomain ()
 import qualified Data.Array.Accelerate.Algebra.Ring                 as Ring ()
 
-import Crypto.Lol.Prelude
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim                 ( Dispatch )
-import qualified Crypto.Lol.Cyclotomic.Tensor.Accelerate.Prim       as P
+import Crypto.Lol.Prelude
 
 import Data.Singletons.Prelude                                      ( Sing(..), sing )
 
@@ -82,9 +73,9 @@ type role Arr nominal nominal
 -- result and under-the-hood update the operands to now be a 'use', rather than
 -- some (possibly quite large) expression.
 --
-instance (A.Eq r, Dispatch r) => Eq (Arr m r) where
-  Arr xs == Arr ys = A.indexArray (P.eq  xs ys) Z
-  Arr xs /= Arr ys = A.indexArray (P.neq xs ys) Z
+instance A.Eq r => Eq (Arr m r) where
+  Arr xs == Arr ys = let !go = runN (A.and $$ A.zipWith (A.==)) in A.indexArray (go xs ys) Z
+  Arr xs /= Arr ys = let !go = runN (A.or  $$ A.zipWith (A./=)) in A.indexArray (go xs ys) Z
 
 instance (Elt r, Random r, Fact m) => Random (Arr m r) where
   randomR = error "Arr.randomR: not supported"
@@ -130,7 +121,7 @@ wrapM f (Arr xs) = Arr <$> f xs
 --    'ldr'-dimensional transform 'I_l' ⊗ 'f' ⊗ 'I_r' to an array of
 --    elements of type 'r'.
 --
-type Tensorable r = ( Int, Array DIM2 r -> Array DIM2 r )
+type Tensorable r = ( Int, Acc (Array DIM2 r) -> Acc (Array DIM2 r) )
 
 -- | A transform with particular 'I_l', 'I_r'
 --
@@ -191,59 +182,54 @@ dimC ((d, _), l, r) = l*d*r
 
 -- | Evaluate a transform by evaluating each component in sequence
 --
-eval :: Dispatch r
+eval :: Elt r
      => Tagged m (Trans r)
-     -> Arr m r
-     -> Arr m r
-eval t = wrap (go (untag t))
+     -> Tagged m (Acc (Vector r) -> Acc (Vector r))
+eval t = tag (go (untag t))
   where
     go Id{}           = id
     go (TSnoc rest f) = go rest . evalC f
 
-evalC :: Dispatch r => TransC r -> Vector r -> Vector r
+evalC :: Elt r => TransC r -> Acc (Vector r) -> Acc (Vector r)
 evalC ((d, f), _, r) = unexpose r . f . expose d r
 
-evalM :: (Monad monad, Dispatch r)
+evalM :: (Elt r, Monad monad)
       => TaggedT m monad (Trans r)
-      -> monad (Arr m r -> Arr m r)
+      -> monad (Tagged m (Acc (Vector r) -> Acc (Vector r)))
 evalM = fmap (eval . return) . untagT
 
 
 -- | Map the innermost dimension to a 2D array with innermost dimension 'd' for
 -- performing 'I_l' ⊗ 'I_r' transformation.
 --
-expose :: Dispatch r => Int -> Int -> Vector r -> Array DIM2 r
-expose d 1 arr@(A.arrayShape -> Z :. sz) = reshapeArray (Z :. sz `div` d :. d) arr
-expose d r arr                           = P.expose' (scalar d) (scalar r) arr
-
-expose' :: Elt r => Acc (Scalar Int) -> Acc (Scalar Int) -> Acc (Vector r) -> Acc (Array DIM2 r)
-expose' (A.the -> d) (A.the -> r) arr = A.backpermute sh f arr
+expose :: Elt r => Int -> Int -> Acc (Vector r) -> Acc (Array DIM2 r)
+expose d r arr = res
   where
+    res | r == 1    = A.reshape sh arr          -- NOP if arr is manifest
+        | otherwise = A.backpermute sh f arr
+    --
+    d'      = A.constant d
+    r'      = A.constant r
     sz      = A.unindex1 (A.shape arr)
-    sh      = A.index2 (sz `div` d) d
+    sh      = A.index2 (sz `div` d') d'
     f ix    = let Z :. i :. j = A.unlift ix
-                  imodr       = i `mod` r
+                  imodr       = i `mod` r'
               in
-              A.index1 ((i-imodr)*d + j*r + imodr)
-
+              A.index1 ((i-imodr)*d' + j*r' + imodr)
 
 -- | Inverse of 'expose'
 --
-unexpose :: Dispatch r => Int -> Array DIM2 r -> Vector r
-unexpose 1 arr@(A.arrayShape -> Z :. sy :. sx) = reshapeArray (Z :. sy * sx) arr
-unexpose r arr                                 = P.unexpose' (scalar r) arr
-
-unexpose' :: Elt r => Acc (Scalar Int) -> Acc (Array DIM2 r) -> Acc (Vector r)
-unexpose' (A.the -> r) arr = A.backpermute sh f arr
+unexpose :: Elt r => Int -> Acc (Array DIM2 r) -> Acc (Vector r)
+unexpose 1 arr = A.flatten arr                  -- NOP if arr is manifest
+unexpose r arr = A.backpermute sh f arr
   where
     sh            = A.index1 (sz * d)
     Z :. sz :. d  = A.unlift (A.shape arr)
     f ix          = let i              = A.unindex1 ix
-                        (idivr, imodr) = i     `divMod` r
+                        (idivr, imodr) = i     `divMod` A.constant r
                         (idivrd, j)    = idivr `divMod` d
                     in
-                    A.index2 (r * idivrd + imodr) j
-
+                    A.index2 (A.constant r * idivrd + imodr) j
 
 -- | For a factored index, tensors up any function defined for (and tagged by)
 -- any prime power
@@ -314,12 +300,6 @@ mulDiag diag mat
 
 -- Auxiliary functions
 -- --------------------
-
-scalar :: Elt r => r -> Scalar r
-scalar x = A.fromList Z [x]
-
-reshapeArray :: (Shape sh, Shape sh', Elt e) => sh -> Array sh' e -> Array sh e
-reshapeArray sh (Array _ adata) = Array (fromElt sh) adata
 
 infixr 0 $$
 ($$) :: (b -> a) -> (c -> d -> b) -> c -> d -> a

@@ -1,7 +1,7 @@
-{-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE DataKinds             #-}
-{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
 {-# LANGUAGE PolyKinds             #-}
@@ -44,54 +44,54 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 -- moduli such as 'Ext.twaceCRT' could be problematic...
 --
 
--- scalarPow' :: forall m r. (Fact m, Additive (Exp r), Elt r) => r -> Arr m r
--- scalarPow' = Arr . go . scalar
---   where
---     !go = runN (proxy Pow.scalar (Proxy::Proxy m))
+scalarPow' :: forall m r. (Fact m, Additive (Exp r), Elt r) => r -> Arr m r
+scalarPow' = Arr . go . scalar
+  where
+    !go = runN (proxy Pow.scalar (Proxy::Proxy m))
 
--- fL' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
--- fL' = Arr.wrap go
---   where
---     !go = runN (proxy GL.fL (Proxy::Proxy m))
+fL' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
+fL' = Arr.wrap go
+  where
+    !go = runN (proxy GL.fL (Proxy::Proxy m))
 
--- fLInv' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
--- fLInv' = Arr.wrap go
---   where
---     !go = runN (proxy GL.fLInv (Proxy::Proxy m))
+fLInv' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
+fLInv' = Arr.wrap go
+  where
+    !go = runN (proxy GL.fLInv (Proxy::Proxy m))
 
--- mulGPow' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
--- mulGPow' = Arr.wrap go
---   where
---     !go = runN (proxy GL.fGPow (Proxy::Proxy m))
+mulGPow' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
+mulGPow' = Arr.wrap go
+  where
+    !go = runN (proxy GL.fGPow (Proxy::Proxy m))
 
--- mulGDec' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
--- mulGDec' = Arr.wrap go
---   where
---     !go = runN (proxy GL.fGDec (Proxy::Proxy m))
+mulGDec' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
+mulGDec' = Arr.wrap go
+  where
+    !go = runN (proxy GL.fGDec (Proxy::Proxy m))
 
--- divGPow'
---     :: forall m r. (Fact m, IntegralDomain (Exp r), ZeroTestable.C (Exp r), FromIntegral Int r, Elt r)
---     => Arr m r
---     -> Maybe (Arr m r)
--- divGPow' = Arr.wrapM check
---   where
---     !go     = runN (proxy GL.fGInvPow (Proxy::Proxy m))
---     check x = let (ok,r) = go x in
---               if indexArray ok Z
---                 then Just r
---                 else Nothing
+divGPow'
+    :: forall m r. (Fact m, IntegralDomain (Exp r), ZeroTestable.C (Exp r), FromIntegral Int r, Elt r)
+    => Arr m r
+    -> Maybe (Arr m r)
+divGPow' = Arr.wrapM check
+  where
+    !go     = runN (proxy GL.fGInvPow (Proxy::Proxy m))
+    check x = let (ok,r) = go x in
+              if indexArray ok Z
+                then Just r
+                else Nothing
 
--- divGDec'
---     :: forall m r. (Fact m, IntegralDomain (Exp r), ZeroTestable.C (Exp r), FromIntegral Int r, Elt r)
---     => Arr m r
---     -> Maybe (Arr m r)
--- divGDec' = Arr.wrapM check
---   where
---     !go     = runN (proxy GL.fGInvDec (Proxy::Proxy m))
---     check x = let (ok,r) = go x in
---                 if indexArray ok Z
---                   then Just r
---                   else Nothing
+divGDec'
+    :: forall m r. (Fact m, IntegralDomain (Exp r), ZeroTestable.C (Exp r), FromIntegral Int r, Elt r)
+    => Arr m r
+    -> Maybe (Arr m r)
+divGDec' = Arr.wrapM check
+  where
+    !go     = runN (proxy GL.fGInvDec (Proxy::Proxy m))
+    check x = let (ok,r) = go x in
+                if indexArray ok Z
+                  then Just r
+                  else Nothing
 
 scalarCRT' :: forall monad m r. (CRTrans monad (Exp r), Fact m, Elt r) => monad (r -> Arr m r)
 scalarCRT' = return $ Arr . go . scalar
@@ -137,11 +137,11 @@ twacePowDec' = Arr.wrap (go indices)
     !go       = runN gather
     !indices  = proxy Ext.extIndicesPowDec (Proxy::Proxy '(m,m'))
 
--- embedPow' :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r) => Arr m r -> Arr m' r
--- embedPow' = Arr.wrap (go indices)
---   where
---     !go       = runN Pow.embed'
---     !indices  = proxy Pow.baseIndicesPow (Proxy::Proxy '(m,m'))
+embedPow' :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r) => Arr m r -> Arr m' r
+embedPow' = Arr.wrap (go indices)
+  where
+    !go       = runN Pow.embed'
+    !indices  = proxy Pow.baseIndicesPow (Proxy::Proxy '(m,m'))
 
 embedDec' :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r) => Arr m r -> Arr m' r
 embedDec' = Arr.wrap (go indices)
@@ -171,4 +171,6 @@ embedCRT' = do
 
 scalar :: Elt e => e -> Scalar e
 scalar x  = fromList Z [x]
+
+
 
