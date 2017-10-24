@@ -30,6 +30,9 @@ import qualified Data.Array.Accelerate.LLVM.Native      as CPU
 import qualified Data.Array.Accelerate.LLVM.PTX         as PTX
 #endif
 
+#if !defined(ACCELERATE_LLVM_NATIVE_BACKEND) && !defined(ACCELERATE_LLVM_PTX_BACKEND)
+#error "Must compile with either -fllvm-cpu or -fllvm-ptx"
+#endif
 
 -- | The set of backends available to execute the program.
 --
