@@ -104,7 +104,7 @@ coeffs :: forall m m' r. (m `Divides` m', Elt r)
        -> [Arr m r]
 coeffs (Arr arr) =
   let indices = proxy extIndicesCoeffs (Proxy::Proxy '(m,m'))
-      go      = memo __coeffs (MK::MemoKey '(m,m',r))
+      !go     = memo __coeffs (MK::MemoKey '(m,m',r))
               $ runN (flip A.gather)
   in
   V.toList $ V.map (Arr . go arr) indices

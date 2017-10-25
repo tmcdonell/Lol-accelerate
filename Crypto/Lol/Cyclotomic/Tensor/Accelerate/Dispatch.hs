@@ -53,32 +53,32 @@ import qualified Data.Array.Accelerate.Algebra.ZeroTestable         as ZeroTesta
 scalarPow' :: forall m r. (Fact m, Additive (Exp r), Elt r) => r -> Arr m r
 scalarPow' = Arr . go . scalar
   where
-    go = memo __scalarPow' (MK::MemoKey '(m,r))
-       $ runN (proxy Pow.scalar (Proxy::Proxy m))
+    !go = memo __scalarPow' (MK::MemoKey '(m,r))
+        $ runN (proxy Pow.scalar (Proxy::Proxy m))
 
 fL' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
 fL' = Arr.wrap go
   where
-    go = memo __fL' (MK::MemoKey '(m,r))
-       $ runN (proxy GL.fL (Proxy::Proxy m))
+    !go = memo __fL' (MK::MemoKey '(m,r))
+        $ runN (proxy GL.fL (Proxy::Proxy m))
 
 fLInv' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
 fLInv' = Arr.wrap go
   where
-    go = memo __fLInv' (MK::MemoKey '(m,r))
-       $ runN (proxy GL.fLInv (Proxy::Proxy m))
+    !go = memo __fLInv' (MK::MemoKey '(m,r))
+        $ runN (proxy GL.fLInv (Proxy::Proxy m))
 
 mulGPow' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
 mulGPow' = Arr.wrap go
   where
-    go = memo __mulGPow' (MK::MemoKey '(m,r))
-       $ runN (proxy GL.fGPow (Proxy::Proxy m))
+    !go = memo __mulGPow' (MK::MemoKey '(m,r))
+        $ runN (proxy GL.fGPow (Proxy::Proxy m))
 
 mulGDec' :: forall m r. (Fact m, Additive (Exp r), Elt r) => Arr m r -> Arr m r
 mulGDec' = Arr.wrap go
   where
-    go = memo __mulGDec' (MK::MemoKey '(m,r))
-       $ runN (proxy GL.fGDec (Proxy::Proxy m))
+    !go = memo __mulGDec' (MK::MemoKey '(m,r))
+        $ runN (proxy GL.fGDec (Proxy::Proxy m))
 
 divGPow'
     :: forall m r. (Fact m, IntegralDomain (Exp r), ZeroTestable.C (Exp r), FromIntegral Int r, Elt r)
@@ -86,12 +86,12 @@ divGPow'
     -> Maybe (Arr m r)
 divGPow' = Arr.wrapM check
   where
-    go      = memo __divGPow' (MK::MemoKey '(m,r))
-            $ runN (proxy GL.fGInvPow (Proxy::Proxy m))
-    check x = let (ok,r) = go x in
-              if indexArray ok Z
-                then Just r
-                else Nothing
+    !go      = memo __divGPow' (MK::MemoKey '(m,r))
+             $ runN (proxy GL.fGInvPow (Proxy::Proxy m))
+    check x  = let (ok,r) = go x in
+               if indexArray ok Z
+                 then Just r
+                 else Nothing
 
 divGDec'
     :: forall m r. (Fact m, IntegralDomain (Exp r), ZeroTestable.C (Exp r), FromIntegral Int r, Elt r)
@@ -99,86 +99,86 @@ divGDec'
     -> Maybe (Arr m r)
 divGDec' = Arr.wrapM check
   where
-    go      = memo __divGDec' (MK::MemoKey '(m,r))
-            $ runN (proxy GL.fGInvDec (Proxy::Proxy m))
-    check x = let (ok,r) = go x in
-                if indexArray ok Z
-                  then Just r
-                  else Nothing
+    !go      = memo __divGDec' (MK::MemoKey '(m,r))
+             $ runN (proxy GL.fGInvDec (Proxy::Proxy m))
+    check x  = let (ok,r) = go x in
+                 if indexArray ok Z
+                   then Just r
+                   else Nothing
 
 scalarCRT' :: forall monad m r. (CRTrans monad (Exp r), Fact m, Elt r) => monad (r -> Arr m r)
 scalarCRT' = return $ Arr . go . scalar
   where
-    go = memo __scalarCRT' (MK::MemoKey '(m,r))
-       $ runN (proxy CRT.scalar (Proxy::Proxy m))
+    !go = memo __scalarCRT' (MK::MemoKey '(m,r))
+        $ runN (proxy CRT.scalar (Proxy::Proxy m))
 
 mulGCRT' :: forall monad m r. (CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int, Fact m, Elt r)
          => monad (Arr m r -> Arr m r)
 mulGCRT' = Arr.wrap <$> go
   where
-    go = memo __mulGCRT' (MK::MemoKey '(m,r))
-       $ do f <- CRT.mulGCRT
-            return $ runN (proxy f (Proxy::Proxy m))
+    !go = memo __mulGCRT' (MK::MemoKey '(m,r))
+        $ do f <- CRT.mulGCRT
+             return $ runN (proxy f (Proxy::Proxy m))
 
 divGCRT' :: forall monad m r. (CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int, FromIntegral Int r, Fact m, Elt r)
          => monad (Arr m r -> Arr m r)
 divGCRT' = Arr.wrap <$> go
   where
-    go = memo __divGCRT' (MK::MemoKey '(m,r))
-       $ do f <- CRT.divGCRT
-            return $ runN (proxy f (Proxy::Proxy m))
+    !go = memo __divGCRT' (MK::MemoKey '(m,r))
+        $ do f <- CRT.divGCRT
+             return $ runN (proxy f (Proxy::Proxy m))
 
 fCRT' :: forall monad m r. (CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int, Fact m, Elt r)
       => monad (Arr m r -> Arr m r)
 fCRT' = Arr.wrap <$> go
   where
-    go = memo __fCRT' (MK::MemoKey '(m,r))
-       $ do f <- CRT.fCRT
-            return $ runN (proxy f (Proxy::Proxy m))
+    !go = memo __fCRT' (MK::MemoKey '(m,r))
+        $ do f <- CRT.fCRT
+             return $ runN (proxy f (Proxy::Proxy m))
 
 fCRTInv' :: forall monad m r. (CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int, Fact m, Elt r)
          => monad (Arr m r -> Arr m r)
 fCRTInv' = Arr.wrap <$> go
   where
-    go = memo __fCRTInv' (MK::MemoKey '(m,r))
-       $ do f <- CRT.fCRTInv
-            return $ runN (proxy f (Proxy::Proxy m))
+    !go = memo __fCRTInv' (MK::MemoKey '(m,r))
+        $ do f <- CRT.fCRTInv
+             return $ runN (proxy f (Proxy::Proxy m))
 
 gSqNormDec' :: forall m r. (Fact m, Ring (Exp r), Elt r) => Arr m r -> r
 gSqNormDec' (Arr arr) = go arr `indexArray` Z
   where
-    go = memo __gSqNormDec' (MK::MemoKey '(m,r))
-       $ runN (proxy Dec.gSqNorm (Proxy::Proxy m))
+    !go = memo __gSqNormDec' (MK::MemoKey '(m,r))
+        $ runN (proxy Dec.gSqNorm (Proxy::Proxy m))
 
 twacePowDec' :: forall m m' r. (m `Divides` m', Elt r) => Arr m' r -> Arr m r
 twacePowDec' = Arr.wrap go
   where
-    indices  = proxy Ext.extIndicesPowDec (Proxy::Proxy '(m,m'))
-    go       = memo __twacePowDec' (MK::MemoKey '(m,m',r))
-             $ runN (gather (use indices))
+    indices = proxy Ext.extIndicesPowDec (Proxy::Proxy '(m,m'))
+    !go     = memo __twacePowDec' (MK::MemoKey '(m,m',r))
+            $ runN (gather (use indices))
 
 embedPow' :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r) => Arr m r -> Arr m' r
 embedPow' = Arr.wrap go
   where
-    indices  = proxy Pow.baseIndicesPow (Proxy::Proxy '(m,m'))
-    go       = memo __embedPow' (MK::MemoKey '(m,m',r))
-             $ runN (Pow.embed' (use indices))
+    indices = proxy Pow.baseIndicesPow (Proxy::Proxy '(m,m'))
+    !go     = memo __embedPow' (MK::MemoKey '(m,m',r))
+            $ runN (Pow.embed' (use indices))
 
 embedDec' :: forall m m' r. (m `Divides` m', Additive (Exp r), Elt r) => Arr m r -> Arr m' r
 embedDec' = Arr.wrap go
   where
-    indices  = proxy Dec.baseIndicesDec (Proxy::Proxy '(m,m'))
-    go       = memo __embedDec' (MK::MemoKey '(m,m',r))
-             $ runN (Dec.embed' (use indices))
+    indices = proxy Dec.baseIndicesDec (Proxy::Proxy '(m,m'))
+    !go     = memo __embedDec' (MK::MemoKey '(m,m',r))
+            $ runN (Dec.embed' (use indices))
 
 twaceCRT'
     :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp r), CRTIndex (Exp r) ~ Exp Int, FromIntegral Int r, Elt r)
     => monad (Arr m' r -> Arr m r)
 twaceCRT' = Arr.wrap <$> go
   where
-    go = memo __twaceCRT' (MK::MemoKey '(m,m',r))
-       $ do f <- Ext.twaceCRT
-            return $ runN (proxy f (Proxy::Proxy '(m,m')))
+    !go = memo __twaceCRT' (MK::MemoKey '(m,m',r))
+        $ do f <- Ext.twaceCRT
+             return $ runN (proxy f (Proxy::Proxy '(m,m')))
 
 embedCRT' :: forall monad m m' r. (m `Divides` m', CRTrans monad (Exp r), Elt r) => monad (Arr m r -> Arr m' r)
 embedCRT' = do
@@ -186,7 +186,7 @@ embedCRT' = do
   return $ Arr.wrap go
   where
     indices = proxy CRT.baseIndicesCRT (Proxy::Proxy '(m,m'))
-    go      = memo __embedCRT' (MK::MemoKey '(m,m',r))
+    !go     = memo __embedCRT' (MK::MemoKey '(m,m',r))
             $ runN (CRT.embed' (use indices))
 
 

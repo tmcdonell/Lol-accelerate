@@ -90,7 +90,7 @@ tGaussian v = do
       n   = proxy totientFact (Proxy::Proxy m)
       rad = proxy radicalFact (Proxy::Proxy m)
       fE' = proxy fE          (Proxy::Proxy m)
-      go  = memo __tGaussian (MK::MemoKey '(m,r)) (runN fE')
+      !go = memo __tGaussian (MK::MemoKey '(m,r)) (runN fE')
   --
   x <- A.fromList (Z :. n) <$> realGaussians (v * fromIntegral (m `div` rad)) n
   return . Arr $ go x

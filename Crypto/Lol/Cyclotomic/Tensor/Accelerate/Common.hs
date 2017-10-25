@@ -78,13 +78,13 @@ type role Arr nominal nominal
 instance A.Eq r => Eq (Arr m r) where
   Arr xs == Arr ys = A.indexArray (go xs ys) Z
     where
-      go = memo __eq (MK::MemoKey r)
-         $ runN (A.and $$ A.zipWith (A.==))
+      !go = memo __eq (MK::MemoKey r)
+          $ runN (A.and $$ A.zipWith (A.==))
   --
   Arr xs /= Arr ys = A.indexArray (go xs ys) Z
     where
-      go = memo __neq (MK::MemoKey r)
-         $ runN (A.or  $$ A.zipWith (A./=))
+      !go = memo __neq (MK::MemoKey r)
+          $ runN (A.or  $$ A.zipWith (A./=))
 
 instance (Elt r, Random r, Fact m) => Random (Arr m r) where
   randomR = error "Arr.randomR: not supported"

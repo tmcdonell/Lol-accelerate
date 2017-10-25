@@ -138,8 +138,8 @@ instance (GFCtx fp d, Fact m, Additive (AT m fp), Ring (Exp fp)) => Module.C (GF
            $ A.zipWith (*) (A.replicate (A.lift (Z :. h :. All)) g)  -- All == d
                            (A.reshape   (A.lift (Z :. h :. d  )) a)
 
-        go = memo __module_scale (MK::MemoKey '(m,fp))
-           $ runN scale
+        !go = memo __module_scale (MK::MemoKey '(m,fp))
+            $ runN scale
     in
     AT . Arr $! go gf at
   --
@@ -154,8 +154,8 @@ instance (NPZT.C r, ZeroTestable.C (Exp r), Elt r) => NPZT.C (AT m r) where
   isZero (ZV v) = NPZT.isZero v
   isZero (AT a) = A.indexArray (go (unArr a)) Z
     where
-      go = memo __iszero (MK::MemoKey r)
-         $ runN (A.all ZeroTestable.isZero)
+      !go = memo __iszero (MK::MemoKey r)
+          $ runN (A.all ZeroTestable.isZero)
 
 
 -- Miscellaneous instances
