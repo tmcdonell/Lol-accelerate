@@ -33,8 +33,12 @@ module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dispatch
   where
 
 import Control.Applicative
+import Control.Concurrent.MVar
+import Data.HashMap.Strict                                          ( HashMap )
 import System.IO.Unsafe
+import System.Mem.StableName
 import Crypto.Lol.Prelude                                           as LP hiding ( FromIntegral )
+import qualified Data.HashMap.Strict                                as Map
 
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Memo
@@ -190,6 +194,31 @@ embedCRT' = do
             $ runN (CRT.embed' (use indices))
 
 
+fmapT' :: forall a b. (Elt a, Elt b) => (Exp a -> Exp b) -> (Vector a -> Vector b)
+fmapT' f = unsafePerformIO $ do
+  sn <- makeStableName f
+  go <- modifyMVar __fmapT' $ \table ->
+          let key = (sn, MK::MemoKey '(a,b))
+              val = runN (A.map f)
+          in
+          case Map.lookup key table of
+            Just old -> return (table, old)
+            Nothing  -> return (Map.insert key val table, val)
+  return go
+
+zipWithT' :: forall a b c. (Elt a, Elt b, Elt c) => (Exp a -> Exp b -> Exp c) -> (Vector a -> Vector b -> Vector c)
+zipWithT' f = unsafePerformIO $ do
+  sn <- makeStableName f
+  go <- modifyMVar __zipWithT' $ \table ->
+          let key = (sn, MK::MemoKey '(a,b,c))
+              val = runN (A.zipWith f)
+          in
+          case Map.lookup key table of
+            Just old -> return (table, old)
+            Nothing  -> return (Map.insert key val table, val)
+  return go
+
+
 -- Utility
 -- -------
 
@@ -261,4 +290,12 @@ __twaceCRT' = unsafePerformIO newMemoTable
 {-# NOINLINE __embedCRT' #-}
 __embedCRT' :: MemoTable '(m,m',r) (Vector r -> Vector r)
 __embedCRT' = unsafePerformIO newMemoTable
+
+{-# NOINLINE __fmapT' #-}
+__fmapT' :: MVar (HashMap (StableName (Exp a -> Exp b), MemoKey '(a,b)) (Vector a -> Vector b))
+__fmapT' = unsafePerformIO $ newMVar Map.empty
+
+{-# NOINLINE __zipWithT' #-}
+__zipWithT' :: MVar (HashMap (StableName (Exp a -> Exp b -> Exp c), MemoKey '(a,b,c)) (Vector a -> Vector b -> Vector c))
+__zipWithT' = unsafePerformIO $ newMVar Map.empty
 

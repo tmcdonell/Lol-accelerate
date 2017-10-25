@@ -28,17 +28,46 @@
 module Crypto.Lol.Cyclotomic.Tensor.Accelerate.Memo
   where
 
-import Control.Concurrent.MVar
-import Data.HashMap.Strict                                          ( HashMap )
 import Data.Hashable
 import Data.Proxy
 import Data.Typeable
 import System.IO.Unsafe
+
+import Control.Concurrent.MVar
+import Data.HashMap.Strict                                          ( HashMap )
 import qualified Data.HashMap.Strict                                as Map
+
+-- import Data.HashTable.IO                                            ( BasicHashTable )
+-- import qualified Data.HashTable.IO                                  as HT
 
 import Data.Array.Accelerate                                        ( Elt )
 
 import Crypto.Lol.Prelude                                           ( Fact, proxy, valueFact )
+
+
+{--
+type MemoTable k v = BasicHashTable (MemoKey k) v
+
+-- We can't use a Hashtable because our MemoKey doesn't allow for resizing the
+-- polymorphic table; it supports homogeneous equality only.
+--
+newMemoTable :: IO (MemoTable k v)
+newMemoTable = HT.newSized 1024
+
+memo :: forall k v. (Eq (MemoKey k), Hashable (MemoKey k))
+     => MemoTable k v
+     -> MemoKey k
+     -> v
+     -> v
+memo !table _ val =
+  unsafePerformIO $ do
+    mv <- HT.lookup table MK
+    case mv of
+      Just old -> return old
+      Nothing  -> do
+        HT.insert table MK val
+        return val
+--}
 
 
 type MemoTable k v = MVar ( HashMap (MemoKey k) v )
@@ -55,8 +84,8 @@ memo !ref _ val
   = unsafePerformIO
   $ modifyMVar ref $ \table ->
       case Map.lookup MK table of
-        Nothing  -> return (Map.insert MK val table, val)
-        Just old -> return (table, old)
+        Nothing  -> val `seq` return (Map.insert MK val table, val)
+        Just old -> old `seq` return (table, old)
 
 
 data MemoKey (a :: k) = MK
@@ -76,6 +105,7 @@ instance (Hashable (MemoKey a), Hashable (MemoKey b), Hashable (MemoKey c)) => H
                              `hashWithSalt` (MK :: MemoKey b)
                              `hashWithSalt` (MK :: MemoKey c)
 
+
 instance Fact m => Show (MemoKey m) where
   show _ = 'F' : show (proxy valueFact (Proxy::Proxy m))
 
@@ -87,6 +117,7 @@ instance (Show (MemoKey a), Show (MemoKey b)) => Show (MemoKey '(a,b)) where
 
 instance (Show (MemoKey a), Show (MemoKey b), Show (MemoKey c)) => Show (MemoKey '(a,b,c)) where
   show _ = "(" ++ show (MK::MemoKey a) ++ "," ++ show (MK::MemoKey b) ++ "," ++ show (MK::MemoKey c) ++ ")"
+
 
 instance Fact m => Eq (MemoKey m) where
   _ == _ = True

@@ -49,7 +49,6 @@ import Data.Array.Accelerate.Crypto.Lol.CRTrans                     ()
 import Data.Array.Accelerate.Crypto.Lol.Types.Complex               ()
 import Data.Array.Accelerate.Crypto.Lol.Types.ZqBasic               ()
 
-import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Backend
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Dispatch
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.AT                   as AT
 import Crypto.Lol.Cyclotomic.Tensor.Accelerate.Common               as Arr
@@ -158,8 +157,8 @@ instance Tensor AT where
   crtSetDec     = (AT <$>) <$> Ext.crtSetDec
 
   -- Auxiliary
-  fmapT f       = AT.wrap  $ Arr.wrap  (runN (A.map f))
-  zipWithT f    = AT.wrap2 $ Arr.wrap2 (runN (A.zipWith f))
+  fmapT f       = AT.wrap  $ Arr.wrap  (fmapT' f)
+  zipWithT f    = AT.wrap2 $ Arr.wrap2 (zipWithT' f)
 
   unzipT (ZV zv)  = let (za,zb) = unzipIZV zv in (ZV za, ZV zb)
   unzipT (AT at)  =
